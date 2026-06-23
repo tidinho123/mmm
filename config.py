@@ -17,13 +17,47 @@ TELEGRAM_CHAT_ID = "COLE_AQUI_O_SEU_CHAT_ID"
 #   no começo. Depois, com calma, a gente mexe juntos.
 # ------------------------------------------------------------
 
-# Qual ativo analisar (par de cripto da Binance).
-#   Exemplos: "BTCUSDT" (Bitcoin), "ETHUSDT" (Ethereum)
-ATIVO = "BTCUSDT"
+# 3) Quais ativos o bot vai vigiar AO MESMO TEMPO.
+#    Você falou "todo ativo" — mas a Binance tem MILHARES de pares.
+#    Vigiar todos deixaria o bot lento e te encheria de mensagem.
+#    Então deixei aqui os mais negociados (os que mais valem a pena).
+#    Pra adicionar mais, é só escrever o nome do par entre aspas e
+#    uma vírgula no fim. Pra tirar, apaga a linha. Simples assim.
+ATIVOS = [
+    "BTCUSDT",   # Bitcoin
+    "ETHUSDT",   # Ethereum
+    "BNBUSDT",   # BNB
+    "SOLUSDT",   # Solana
+    "XRPUSDT",   # XRP
+    "ADAUSDT",   # Cardano
+    "DOGEUSDT",  # Dogecoin
+    "AVAXUSDT",  # Avalanche
+    "LINKUSDT",  # Chainlink
+    "MATICUSDT", # Polygon
+]
 
-# Tempo de cada vela do gráfico.
-#   Exemplos: "1m" (1 minuto), "5m" (5 minutos), "15m"
+# 4) Tempo de cada vela do gráfico.
+#    Sua estratégia é no M5, então deixei "5m".
+#    Exemplos: "1m", "5m", "15m", "1h"
 TEMPO_GRAFICO = "5m"
 
-# De quantos em quantos segundos o bot olha o gráfico de novo.
+# 5) De quantos em quantos segundos o bot olha os gráficos de novo.
 INTERVALO_SEGUNDOS = 30
+
+# ------------------------------------------------------------
+#   AJUSTES DA SUA ESTRATÉGIA (EMA9 + EMA200 + RSI + MACD)
+#   Mexa só se souber o que está fazendo.
+# ------------------------------------------------------------
+
+EMA_RAPIDA = 9      # a "EMA9 amarela" (a zona de pullback)
+EMA_LENTA = 200     # a EMA200 (diz a direção da tendência)
+
+RSI_PERIODO = 14
+RSI_SOBRECOMPRA = 70   # acima disso = esticado pra cima
+RSI_SOBREVENDA = 30    # abaixo disso = esticado pra baixo
+
+# Nível mínimo de força (estrelas) pra te mandar o sinal.
+#   1 = manda tudo (mais sinais, mais ruído)
+#   2 = só quando tem pelo menos uma confirmação (recomendado)
+#   3 = só quando os 3 gatilhos concordam (poucos sinais, mais seletivo)
+FORCA_MINIMA = 2

@@ -1,8 +1,23 @@
 # 🤖 Bot de Sinais (Telegram)
 
-Bot simples que analisa o gráfico de um ativo (cripto, com dados reais da
-Binance), calcula indicadores técnicos e te **avisa no Telegram** quando
-aparece um sinal de alta ou de baixa.
+Bot que vigia **vários ativos ao mesmo tempo** (cripto, com dados reais da
+Binance), aplica a **sua estratégia** e te **avisa no Telegram** quando
+aparece um sinal de compra (CALL) ou de venda (PUT).
+
+## 📈 A estratégia que está dentro do bot
+
+> **A EMA200 diz a DIREÇÃO · a EMA9 diz a ZONA · a vela diz o SINAL.**
+
+- **Sinal principal — Pullback:** quando o preço está acima da EMA200,
+  recua, toca a EMA9 e fecha uma vela **verde** acima dela → **CALL**.
+  (e o inverso, abaixo da EMA200 com vela **vermelha** → **PUT**).
+- **Confirmação 1 — RSI:** o RSI virando a favor da tendência (saindo de
+  70/30) dá mais força ao sinal.
+- **Confirmação 2 — MACD:** a linha do MACD cruzando o sinal dá mais força.
+
+Cada sinal vem com uma **força de ⭐ a ⭐⭐⭐**: quanto mais confirmações
+batem juntas, mais estrelas. No `config.py` dá pra escolher só receber
+sinais a partir de uma certa força.
 
 > ⚠️ **Aviso honesto:** sinal **NÃO** é garantia de lucro. Opções binárias
 > têm o jogo matematicamente contra o apostador. Use isto como ferramenta
@@ -37,4 +52,9 @@ Pronto! O bot manda "✅ Bot ligado!" no Telegram e começa a vigiar o gráfico.
 ---
 
 ## Onde eu mexo as coisas?
-Só no arquivo **`config.py`**. Os outros não precisa tocar.
+Só no arquivo **`config.py`**. Os outros não precisa tocar. Lá você
+escolhe:
+- **`ATIVOS`** → a lista de pares que o bot vigia (adicione ou remova).
+- **`TEMPO_GRAFICO`** → o tempo do gráfico (sua estratégia é `"5m"`).
+- **`FORCA_MINIMA`** → de quantas estrelas pra cima você quer ser avisado
+  (`2` é o recomendado).
