@@ -4,13 +4,19 @@
 #   (As linhas que começam com #  são só explicações, não mexa nelas)
 # ============================================================
 
-# 1) A "senha" (token) do seu robô do Telegram.
-#    Você vai pegar isso conversando com o @BotFather (eu te ensino).
-TELEGRAM_TOKEN = "COLE_AQUI_O_TOKEN_DO_SEU_ROBO"
-
-# 2) O seu "número de identificação" no Telegram (chat id).
-#    Eu te ensino a descobrir esse número.
-TELEGRAM_CHAT_ID = "COLE_AQUI_O_SEU_CHAT_ID"
+# 1) e 2) O seu TOKEN e o seu CHAT ID do Telegram agora ficam num
+#    arquivo SEPARADO, chamado  MEUS_DADOS.py , só pra eles.
+#    Isso é de propósito: assim, quando você atualizar o bot, o seu
+#    token NÃO some. Veja o arquivo  MEUS_DADOS_EXEMPLO.py  pra criar.
+try:
+    from MEUS_DADOS import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
+except ImportError:
+    print("=" * 56)
+    print("  FALTA O ARQUIVO  MEUS_DADOS.py  !")
+    print("  Faça uma cópia do  MEUS_DADOS_EXEMPLO.py  com o nome")
+    print("  MEUS_DADOS.py  e cole lá dentro o seu token e chat id.")
+    print("=" * 56)
+    raise SystemExit(1)
 
 # ------------------------------------------------------------
 #   Daqui pra baixo são ajustes do bot. Pode deixar assim

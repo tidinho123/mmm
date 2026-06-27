@@ -1,3 +1,6 @@
 # Arquivos que o Python cria sozinho ao rodar o bot (não precisa guardar)
 __pycache__/
 *.pyc
+
+# Seus dados secretos (token do Telegram). NUNCA sobe pro repositório.
+MEUS_DADOS.py

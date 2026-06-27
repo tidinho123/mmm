@@ -32,7 +32,8 @@ sinais a partir de uma certa força.
 - No Telegram, procure por **@BotFather**.
 - Mande `/newbot` e siga as perguntas (nome do bot).
 - Ele te dá um **TOKEN** (uma sequência tipo `123456:ABC-DEF...`).
-- Cole esse token no arquivo **`config.py`**, na linha `TELEGRAM_TOKEN`.
+- Faça uma cópia do **`MEUS_DADOS_EXEMPLO.py`** com o nome
+  **`MEUS_DADOS.py`** e cole esse token na linha `TELEGRAM_TOKEN`.
 
 ### 2. Instalar o Python
 - Baixe em **python.org/downloads**.
@@ -41,7 +42,7 @@ sinais a partir de uma certa força.
 ### 3. Descobrir o seu Chat ID
 - No Telegram, mande "oi" para o seu robô.
 - Rode o arquivo **`pegar_meu_id.py`**.
-- Ele mostra o seu número. Cole no `config.py`, em `TELEGRAM_CHAT_ID`.
+- Ele mostra o seu número. Cole no `MEUS_DADOS.py`, em `TELEGRAM_CHAT_ID`.
 
 ### 4. Ligar o bot
 - **Windows:** dois cliques em **`LIGAR_BOT_windows.bat`**.
