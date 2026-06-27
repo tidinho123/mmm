@@ -5,17 +5,24 @@
 #   Stop Loss prontos. As linhas com #  são explicações.
 # ============================================================
 
-# 1) e 2) Token e Chat ID do Telegram — vêm do MESMO arquivo
-#    MEUS_DADOS.py  que o outro bot usa. Você cria ele só uma vez.
-try:
-    from MEUS_DADOS import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
-except ImportError:
-    print("=" * 56)
-    print("  FALTA O ARQUIVO  MEUS_DADOS.py  !")
-    print("  Faça uma cópia do  MEUS_DADOS_EXEMPLO.py  com o nome")
-    print("  MEUS_DADOS.py  e cole lá dentro o seu token e chat id.")
-    print("=" * 56)
-    raise SystemExit(1)
+# 1) COLE AQUI o TOKEN do Telegram DESTE bot (o bot Binance), entre aspas.
+#    IMPORTANTE: pra os sinais virem SEPARADOS do bot Quotex, crie um
+#    NOVO robô no @BotFather e cole o token DELE aqui (diferente do outro).
+TELEGRAM_TOKEN = "COLE_AQUI_O_TOKEN_DO_BOT_BINANCE"
+
+# 2) COLE AQUI o seu CHAT ID (só números). Use aspas, tá certo assim.
+TELEGRAM_CHAT_ID = "COLE_AQUI_O_SEU_CHAT_ID"
+
+#    -------------------------------------------------------------
+#    Pronto! O bot já funciona com o que você colou acima.
+#    (AVANÇADO, opcional: se existir um arquivo  MEUS_DADOS_BINANCE.py ,
+#     ele tem prioridade. Se NÃO existir, o bot usa o que está aqui em
+#     cima e NÃO desliga.)
+if "COLE_AQUI" in str(TELEGRAM_TOKEN):
+    try:
+        from MEUS_DADOS_BINANCE import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
+    except Exception:
+        pass
 
 # ------------------------------------------------------------
 #   Ajustes do bot. Pode deixar assim no começo.

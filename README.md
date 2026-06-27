@@ -9,8 +9,9 @@ preços reais da **Binance**, aplicam a **mesma estratégia** (EMA9 + EMA200
 | **Quotex** | Opções binárias (Quotex) | CALL **e** PUT, com sugestão de expiração | `LIGAR_BOT_QUOTEX_windows.bat` |
 | **Binance** | Comprar cripto de verdade (Spot) | **só** COMPRA (CALL), com Take Profit e Stop Loss | `LIGAR_BOT_BINANCE_windows.bat` |
 
-> Você pode ligar **um** ou **os dois** ao mesmo tempo. Os dois usam o
-> mesmo Telegram (mesmo arquivo `MEUS_DADOS.py`).
+> Você pode ligar **um** ou **os dois** ao mesmo tempo. Cada bot tem o
+> **seu próprio** Telegram: o token do Quotex vai no `config.py` e o do
+> Binance vai no `config_binance.py`. Assim os sinais chegam separados.
 
 ## 📈 A estratégia que está dentro dos bots
 
@@ -38,8 +39,8 @@ batem juntas, mais estrelas.
 - No Telegram, procure por **@BotFather**.
 - Mande `/newbot` e siga as perguntas (nome do bot).
 - Ele te dá um **TOKEN** (uma sequência tipo `123456:ABC-DEF...`).
-- Faça uma cópia do **`MEUS_DADOS_EXEMPLO.py`** com o nome
-  **`MEUS_DADOS.py`** e cole esse token na linha `TELEGRAM_TOKEN`.
+- Para ter os sinais **separados**, crie **dois** robôs: um pro Quotex
+  e outro pro Binance (cada um com seu token).
 
 ### 2. Instalar o Python
 - Baixe em **python.org/downloads**.
@@ -48,7 +49,14 @@ batem juntas, mais estrelas.
 ### 3. Descobrir o seu Chat ID
 - No Telegram, mande "oi" para o seu robô.
 - Rode o arquivo **`pegar_meu_id.py`**.
-- Ele mostra o seu número. Cole no `MEUS_DADOS.py`, em `TELEGRAM_CHAT_ID`.
+- Ele mostra o seu número.
+
+### 3.1. Colar o token e o chat id
+- **Bot Quotex:** abra o **`config.py`** e cole o token e o chat id nas
+  duas primeiras linhas (`TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID`).
+- **Bot Binance:** abra o **`config_binance.py`** e faça o mesmo (de
+  preferência com o token do **segundo** robô, pra ficar separado).
+- **Não precisa criar nenhum arquivo novo.** Só editar esses que já existem.
 
 ### 4. Ligar o bot que você quer
 - **Bot Quotex (CALL e PUT):** dois cliques em

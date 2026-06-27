@@ -4,20 +4,24 @@
 #   As linhas que começam com #  são só explicações, não mexa nelas.
 # ============================================================
 
-# 1) e 2) O seu TOKEN e o seu CHAT ID do Telegram ficam num arquivo
-#    SEPARADO, chamado  MEUS_DADOS.py , só pra eles. Isso é de
-#    propósito: assim, quando você atualizar o bot, o seu token NÃO
-#    some. Veja o arquivo  MEUS_DADOS_EXEMPLO.py  pra criar.
-#    (Os DOIS bots, Quotex e Binance, usam esse mesmo arquivo.)
-try:
-    from MEUS_DADOS import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
-except ImportError:
-    print("=" * 56)
-    print("  FALTA O ARQUIVO  MEUS_DADOS.py  !")
-    print("  Faça uma cópia do  MEUS_DADOS_EXEMPLO.py  com o nome")
-    print("  MEUS_DADOS.py  e cole lá dentro o seu token e chat id.")
-    print("=" * 56)
-    raise SystemExit(1)
+# 1) COLE AQUI o TOKEN do Telegram DESTE bot (o bot Quotex), entre aspas.
+#    É a sequência que o @BotFather te deu (tipo  123456:ABC-DEF... ).
+TELEGRAM_TOKEN = "COLE_AQUI_O_TOKEN_DO_BOT_QUOTEX"
+
+# 2) COLE AQUI o seu CHAT ID (só números). Use aspas, tá certo assim.
+TELEGRAM_CHAT_ID = "COLE_AQUI_O_SEU_CHAT_ID"
+
+#    -------------------------------------------------------------
+#    Pronto, só isso! O bot já funciona com o que você colou acima.
+#    (AVANÇADO, opcional: se você preferir guardar o token num
+#     arquivo à parte chamado  MEUS_DADOS.py , pode criar — se ele
+#     existir, ele tem prioridade. Se NÃO existir, tudo bem, o bot
+#     usa o que está aqui em cima e NÃO desliga.)
+if "COLE_AQUI" in str(TELEGRAM_TOKEN):
+    try:
+        from MEUS_DADOS import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
+    except Exception:
+        pass
 
 # ------------------------------------------------------------
 #   Daqui pra baixo são ajustes do bot. Pode deixar assim
