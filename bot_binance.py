@@ -1,30 +1,17 @@
 # ============================================================
-#   BOT QUOTEX  -  Sinais CALL e PUT pra opções binárias
+#   BOT BINANCE  -  Sinais de COMPRA (CALL) pra cripto de verdade
 #
-#   Este é o bot pra operar na QUOTEX (opções binárias).
-#   Ele manda sinais de COMPRA (CALL) e de VENDA (PUT), com
-#   sugestão de expiração (1 a 2 velas).
+#   Este bot é pra COMPRAR cripto no SPOT da Binance.
+#   Na Binance Spot você só GANHA quando o preço SOBE, então este
+#   bot manda SÓ sinais de COMPRA (🟢 CALL) e ignora os de queda.
+#   Cada sinal já vem com o PLANO pronto: onde comprar, onde vender
+#   no lucro (Take Profit) e onde sair no prejuízo (Stop Loss).
 #
-#   (Se você quer COMPRAR cripto de verdade na Binance, com
-#    Take Profit e Stop Loss, use o outro bot:  bot_binance.py )
+#   (Se você quer operar OPÇÕES BINÁRIAS na Quotex, com CALL e PUT,
+#    use o outro bot:  bot.py )
 #
 #   VOCÊ NÃO PRECISA ENTENDER ESTE ARQUIVO.
-#   Ele é o "cérebro" do bot. É só deixar ele aqui e rodar.
-#   (Pra mexer nas configurações, abra o arquivo  config.py )
-#
-#   SUA ESTRATÉGIA, do seu jeito:
-#     "A EMA200 diz a DIREÇÃO, a EMA9 diz a ZONA, a vela diz o SINAL."
-#
-#   Ela tem 3 gatilhos:
-#     A) PULLBACK: preço acima da EMA200, recua, toca a EMA9 e
-#        fecha uma vela VERDE acima da EMA9  -> CALL (compra).
-#        (e o inverso, abaixo da EMA200, vela vermelha -> PUT)
-#     B) RSI: na direção da tendência, o RSI chega no extremo
-#        (70 ou 30) e VIRA, com vela confirmando -> confirma o sinal.
-#     C) MACD: a linha do MACD cruza a linha de sinal -> confirma.
-#
-#   O gatilho A é o sinal PRINCIPAL. B e C entram como CONFIRMAÇÃO
-#   e viram "estrelas de força" (⭐ a ⭐⭐⭐).
+#   (Pra mexer nas configurações, abra o arquivo  config_binance.py )
 #
 #   AVISO IMPORTANTE: nenhum sinal é garantia de lucro.
 #   Isto é uma ferramenta de ESTUDO e APOIO, não dinheiro fácil.
@@ -32,17 +19,13 @@
 
 import time
 import requests
-import config
+import config_binance as config
 
 
 # ---------- Funções que conversam com a internet ----------
 
 def pegar_velas(ativo, tempo, quantidade=300):
-    """Busca o histórico de velas (OHLC) na Binance.
-
-    Retorna uma lista de velas, cada uma assim:
-      {"abertura":.., "maxima":.., "minima":.., "fechamento":.., "hora":..}
-    """
+    """Busca o histórico de velas (OHLC) na Binance."""
     url = "https://api.binance.com/api/v3/klines"
     parametros = {"symbol": ativo, "interval": tempo, "limit": quantidade}
     resposta = requests.get(url, params=parametros, timeout=15)
@@ -51,15 +34,13 @@ def pegar_velas(ativo, tempo, quantidade=300):
     velas = []
     for v in dados:
         velas.append({
-            "hora": v[0],                 # horário de abertura da vela
+            "hora": v[0],
             "abertura": float(v[1]),
             "maxima": float(v[2]),
             "minima": float(v[3]),
             "fechamento": float(v[4]),
         })
-    # A última vela ainda está "se formando" (não fechou). Pra estratégia
-    # valer, a gente trabalha sempre com a ÚLTIMA VELA JÁ FECHADA.
-    # Por isso descartamos a última (incompleta).
+    # Trabalhamos sempre com a ÚLTIMA VELA JÁ FECHADA (descarta a atual).
     return velas[:-1]
 
 
@@ -76,9 +57,7 @@ def enviar_telegram(mensagem):
 # ---------- Contas dos indicadores técnicos ----------
 
 def ema_serie(valores, periodo):
-    """Calcula a EMA passo a passo e devolve a LISTA inteira
-    (um valor de EMA pra cada preço). Assim dá pra ver se a EMA
-    está subindo ou descendo comparando o último com o anterior."""
+    """Calcula a EMA passo a passo e devolve a LISTA inteira."""
     k = 2 / (periodo + 1)
     ema = valores[0]
     saida = [ema]
@@ -107,9 +86,7 @@ def calcular_rsi(valores, periodo=14):
 
 
 def calcular_macd(fechamentos):
-    """MACD clássico (12, 26, 9).
-    Retorna (macd_agora, sinal_agora, macd_antes, sinal_antes)
-    pra dar pra ver o cruzamento entre a vela atual e a anterior."""
+    """MACD clássico (12, 26, 9)."""
     if len(fechamentos) < 35:
         return 0.0, 0.0, 0.0, 0.0
     ema12 = ema_serie(fechamentos, 12)
@@ -123,10 +100,8 @@ def calcular_macd(fechamentos):
 # ---------- A SUA ESTRATÉGIA (quando dar o sinal) ----------
 
 def analisar(velas):
-    """
-    Aplica a sua estratégia na última vela fechada.
-    Retorna um dicionário com o resultado, ou None se faltar dado.
-    """
+    """Aplica a estratégia na última vela fechada.
+    Aqui só nos interessa o sinal de COMPRA (CALL)."""
     if len(velas) < config.EMA_LENTA + 5:
         return None
 
@@ -139,33 +114,22 @@ def analisar(velas):
     rsi_agora = calcular_rsi(fechamentos, config.RSI_PERIODO)
     rsi_antes = calcular_rsi(fechamentos[:-1], config.RSI_PERIODO)
 
-    # A vela que vamos avaliar é a última fechada.
     vela = velas[-1]
     e9 = ema9[-1]
     e200 = ema200[-1]
     e9_antes = ema9[-2]
 
     verde = vela["fechamento"] > vela["abertura"]
-    vermelha = vela["fechamento"] < vela["abertura"]
-
-    # Tocou a EMA9? (a sombra/preço da vela passou pela EMA9)
     tocou_ema9 = vela["minima"] <= e9 <= vela["maxima"]
 
-    direcao = None        # "CALL" ou "PUT"
-    confirmacoes = []     # lista de textos das confirmações que bateram
+    confirmacoes = []
 
-    # ---------------- GATILHO A: PULLBACK (sinal principal) ----------
-    # CALL: acima da EMA200, recuou e tocou a EMA9, fechou VERDE acima da EMA9
-    if (vela["fechamento"] > e200 and tocou_ema9
-            and vela["fechamento"] > e9 and verde):
-        direcao = "CALL"
-    # PUT: abaixo da EMA200, subiu e tocou a EMA9, fechou VERMELHO abaixo da EMA9
-    elif (vela["fechamento"] < e200 and tocou_ema9
-            and vela["fechamento"] < e9 and vermelha):
-        direcao = "PUT"
+    # GATILHO A (só COMPRA): acima da EMA200, recuou e tocou a EMA9,
+    # fechou VERDE acima da EMA9.
+    eh_compra = (vela["fechamento"] > e200 and tocou_ema9
+                 and vela["fechamento"] > e9 and verde)
 
-    # Sem o gatilho principal, não há sinal.
-    if direcao is None:
+    if not eh_compra:
         return {
             "sinal": None,
             "preco": vela["fechamento"],
@@ -174,46 +138,30 @@ def analisar(velas):
             "hora": vela["hora"],
         }
 
-    # ---------------- GATILHO B: RSI a favor da tendência ------------
-    # CALL: RSI saindo da sobrevenda (estava esticado pra baixo e virou pra cima)
-    if direcao == "CALL":
-        if rsi_antes <= config.RSI_SOBREVENDA and rsi_agora > rsi_antes:
-            confirmacoes.append("RSI saindo da sobrevenda (virou pra cima)")
-        elif rsi_agora > 50:
-            confirmacoes.append("RSI a favor (acima de 50)")
-    else:  # PUT
-        if rsi_antes >= config.RSI_SOBRECOMPRA and rsi_agora < rsi_antes:
-            confirmacoes.append("RSI saindo da sobrecompra (virou pra baixo)")
-        elif rsi_agora < 50:
-            confirmacoes.append("RSI a favor (abaixo de 50)")
+    # GATILHO B: RSI a favor da subida.
+    if rsi_antes <= config.RSI_SOBREVENDA and rsi_agora > rsi_antes:
+        confirmacoes.append("RSI saindo da sobrevenda (virou pra cima)")
+    elif rsi_agora > 50:
+        confirmacoes.append("RSI a favor (acima de 50)")
 
-    # ---------------- GATILHO C: cruzamento do MACD ------------------
+    # GATILHO C: cruzamento do MACD pra cima.
     cruzou_cima = macd_antes <= sinal_antes and macd_agora > sinal_agora
-    cruzou_baixo = macd_antes >= sinal_antes and macd_agora < sinal_agora
-    if direcao == "CALL":
-        if cruzou_cima:
-            confirmacoes.append("MACD cruzou pra cima")
-        elif macd_agora > sinal_agora:
-            confirmacoes.append("MACD a favor (acima do sinal)")
-    else:  # PUT
-        if cruzou_baixo:
-            confirmacoes.append("MACD cruzou pra baixo")
-        elif macd_agora < sinal_agora:
-            confirmacoes.append("MACD a favor (abaixo do sinal)")
+    if cruzou_cima:
+        confirmacoes.append("MACD cruzou pra cima")
+    elif macd_agora > sinal_agora:
+        confirmacoes.append("MACD a favor (acima do sinal)")
 
-    # Confirmação extra: a EMA9 está apontando na direção certa?
-    if direcao == "CALL" and e9 > e9_antes:
+    # Confirmação extra: a EMA9 está subindo?
+    if e9 > e9_antes:
         confirmacoes.append("EMA9 subindo")
-    if direcao == "PUT" and e9 < e9_antes:
-        confirmacoes.append("EMA9 descendo")
 
-    # Força = 1 estrela pelo gatilho principal + 1 por confirmação (máx 3).
+    # Força = 1 (gatilho principal) + 1 por confirmação forte (máx 3).
     forca = 1 + len([c for c in confirmacoes
                      if "RSI" in c or "MACD cruzou" in c])
     forca = min(forca, 3)
 
     return {
-        "sinal": direcao,
+        "sinal": "CALL",
         "forca": forca,
         "confirmacoes": confirmacoes,
         "preco": vela["fechamento"],
@@ -226,18 +174,16 @@ def analisar(velas):
 # ---------- Montagem da mensagem ----------
 
 def montar_mensagem(ativo, r):
-    direcao = r["sinal"]
     estrelas = "⭐" * r["forca"]
-    if direcao == "CALL":
-        topo = "🟢 SINAL DE COMPRA (CALL)"
-    else:
-        topo = "🔴 SINAL DE VENDA (PUT)"
+    preco = r["preco"]
+    take_profit = preco * (1 + config.TAKE_PROFIT_PCT / 100)
+    stop_loss = preco * (1 - config.STOP_LOSS_PCT / 100)
 
     linhas = [
-        topo,
+        "🟢 SINAL DE COMPRA (Binance Spot)",
         "Ativo: {}".format(ativo),
         "Tempo do gráfico: {}".format(config.TEMPO_GRAFICO),
-        "Preço: {:.6g}".format(r["preco"]),
+        "Preço agora: {:.6g}".format(preco),
         "Força: {} ({} de 3)".format(estrelas, r["forca"]),
         "",
         "Por quê:",
@@ -245,10 +191,19 @@ def montar_mensagem(ativo, r):
     ]
     for c in r["confirmacoes"]:
         linhas.append("• " + c)
+
     linhas += [
         "",
         "RSI: {:.0f}".format(r["rsi"]),
-        "👉 Sugestão de expiração: 1 a 2 velas ({})".format(config.TEMPO_GRAFICO),
+        "",
+        "📋 PLANO (Binance Spot):",
+        "1) COMPRAR perto de {:.6g}".format(preco),
+        "2) 🎯 Vender no LUCRO (Take Profit): {:.6g}  (+{:.1f}%)".format(
+            take_profit, config.TAKE_PROFIT_PCT),
+        "3) 🛑 Sair no PREJUÍZO (Stop Loss): {:.6g}  (-{:.1f}%)".format(
+            stop_loss, config.STOP_LOSS_PCT),
+        "(Dica: use uma ordem OCO pra deixar o TP e o SL automáticos.)",
+        "",
         "⚠️ Confira no seu gráfico antes de operar. Sinal não é garantia.",
     ]
     return "\n".join(linhas)
@@ -257,19 +212,17 @@ def montar_mensagem(ativo, r):
 # ---------- O "loop" principal: roda pra sempre ----------
 
 def main():
-    print("Bot QUOTEX ligado! Vigiando", len(config.ATIVOS),
+    print("Bot BINANCE ligado! Vigiando", len(config.ATIVOS),
           "ativos no tempo", config.TEMPO_GRAFICO)
     enviar_telegram(
-        "✅ Bot QUOTEX ligado!\nVou vigiar {} ativos no gráfico de {} e te "
-        "avisar quando aparecer um sinal pela sua estratégia "
-        "(EMA9 + EMA200 + RSI + MACD).\nMando sinais de COMPRA (CALL) e "
-        "VENDA (PUT).\n\n⚠️ Lembre-se: sinal NÃO é garantia. Opere com "
+        "✅ Bot BINANCE ligado!\nVou vigiar {} criptos no gráfico de {} e "
+        "te avisar SÓ quando aparecer um sinal de COMPRA (🟢 CALL), já com "
+        "Take Profit e Stop Loss prontos.\n\nEstratégia: EMA9 + EMA200 + "
+        "RSI + MACD.\n\n⚠️ Lembre-se: sinal NÃO é garantia. Opere com "
         "responsabilidade.".format(
             len(config.ATIVOS), config.TEMPO_GRAFICO)
     )
 
-    # Pra não repetir o mesmo aviso: guardamos, por ativo, qual foi a
-    # última vela (hora) e direção que já avisamos.
     ja_avisado = {}
 
     while True:
@@ -281,23 +234,21 @@ def main():
                     print(ativo, "- sem dados suficientes ainda")
                     continue
 
-                if r["sinal"] and r["forca"] >= config.FORCA_MINIMA:
+                if r["sinal"] == "CALL" and r["forca"] >= config.FORCA_MINIMA:
                     chave = (r["hora"], r["sinal"])
                     if ja_avisado.get(ativo) != chave:
                         enviar_telegram(montar_mensagem(ativo, r))
                         ja_avisado[ativo] = chave
-                        print(">>> SINAL", r["sinal"], ativo,
-                              "força", r["forca"])
+                        print(">>> COMPRA", ativo, "força", r["forca"])
                     else:
                         print(ativo, "- sinal repetido (já avisei)")
                 else:
-                    print(ativo, "- sem sinal. Preço:", r["preco"],
+                    print(ativo, "- sem sinal de compra. Preço:", r["preco"],
                           "RSI:", round(r["rsi"]))
 
             except Exception as erro:
                 print("Erro em", ativo, "(vou tentar de novo):", erro)
 
-            # pausinha entre um ativo e outro pra não sobrecarregar a Binance
             time.sleep(1)
 
         time.sleep(config.INTERVALO_SEGUNDOS)

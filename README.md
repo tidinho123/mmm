@@ -1,10 +1,18 @@
-# 🤖 Bot de Sinais (Telegram)
+# 🤖 Bots de Sinais (Telegram)
 
-Bot que vigia **vários ativos ao mesmo tempo** (cripto, com dados reais da
-Binance), aplica a **sua estratégia** e te **avisa no Telegram** quando
-aparece um sinal de compra (CALL) ou de venda (PUT).
+Aqui tem **DOIS bots**, cada um pra um jeito de operar. Os dois leem os
+preços reais da **Binance**, aplicam a **mesma estratégia** (EMA9 + EMA200
++ RSI + MACD) e te **avisam no Telegram**.
 
-## 📈 A estratégia que está dentro do bot
+| Bot | Pra quê serve | Manda | Arquivo pra ligar |
+|-----|---------------|-------|-------------------|
+| **Quotex** | Opções binárias (Quotex) | CALL **e** PUT, com sugestão de expiração | `LIGAR_BOT_QUOTEX_windows.bat` |
+| **Binance** | Comprar cripto de verdade (Spot) | **só** COMPRA (CALL), com Take Profit e Stop Loss | `LIGAR_BOT_BINANCE_windows.bat` |
+
+> Você pode ligar **um** ou **os dois** ao mesmo tempo. Os dois usam o
+> mesmo Telegram (mesmo arquivo `MEUS_DADOS.py`).
+
+## 📈 A estratégia que está dentro dos bots
 
 > **A EMA200 diz a DIREÇÃO · a EMA9 diz a ZONA · a vela diz o SINAL.**
 
@@ -16,13 +24,11 @@ aparece um sinal de compra (CALL) ou de venda (PUT).
 - **Confirmação 2 — MACD:** a linha do MACD cruzando o sinal dá mais força.
 
 Cada sinal vem com uma **força de ⭐ a ⭐⭐⭐**: quanto mais confirmações
-batem juntas, mais estrelas. No `config.py` dá pra escolher só receber
-sinais a partir de uma certa força.
+batem juntas, mais estrelas.
 
-> ⚠️ **Aviso honesto:** sinal **NÃO** é garantia de lucro. Opções binárias
-> têm o jogo matematicamente contra o apostador. Use isto como ferramenta
-> de **estudo e apoio**, com dinheiro que você pode perder. Nenhum bot
-> prevê o futuro.
+> ⚠️ **Aviso honesto:** sinal **NÃO** é garantia de lucro. Use isto como
+> ferramenta de **estudo e apoio**, com dinheiro que você pode perder.
+> Nenhum bot prevê o futuro.
 
 ---
 
@@ -44,18 +50,29 @@ sinais a partir de uma certa força.
 - Rode o arquivo **`pegar_meu_id.py`**.
 - Ele mostra o seu número. Cole no `MEUS_DADOS.py`, em `TELEGRAM_CHAT_ID`.
 
-### 4. Ligar o bot
-- **Windows:** dois cliques em **`LIGAR_BOT_windows.bat`**.
-- **Mac/Linux:** rode **`LIGAR_BOT_mac_linux.sh`**.
+### 4. Ligar o bot que você quer
+- **Bot Quotex (CALL e PUT):** dois cliques em
+  **`LIGAR_BOT_QUOTEX_windows.bat`**.
+- **Bot Binance (só compra, com TP/SL):** dois cliques em
+  **`LIGAR_BOT_BINANCE_windows.bat`**.
 
-Pronto! O bot manda "✅ Bot ligado!" no Telegram e começa a vigiar o gráfico.
+Pronto! O bot manda "✅ Bot ligado!" no Telegram e começa a vigiar.
 
 ---
 
 ## Onde eu mexo as coisas?
-Só no arquivo **`config.py`**. Os outros não precisa tocar. Lá você
-escolhe:
+
+- **Bot Quotex** → arquivo **`config.py`**
+- **Bot Binance** → arquivo **`config_binance.py`**
+
+Em cada um você escolhe:
 - **`ATIVOS`** → a lista de pares que o bot vigia (adicione ou remova).
-- **`TEMPO_GRAFICO`** → o tempo do gráfico (sua estratégia é `"5m"`).
+  No Quotex, confira se o ativo existe na **sua** Quotex.
+- **`TEMPO_GRAFICO`** → o tempo do gráfico (Quotex usa `"5m"`,
+  Binance usa `"15m"`).
 - **`FORCA_MINIMA`** → de quantas estrelas pra cima você quer ser avisado
   (`2` é o recomendado).
+
+Só no bot Binance (`config_binance.py`) você ainda tem:
+- **`TAKE_PROFIT_PCT`** → onde vender no lucro (ex: `1.0` = +1%).
+- **`STOP_LOSS_PCT`** → onde sair no prejuízo (ex: `0.5` = -0.5%).

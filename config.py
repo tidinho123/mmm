@@ -1,13 +1,14 @@
 # ============================================================
-#   CONFIGURAÇÃO DO BOT  -  É AQUI QUE VOCÊ MEXE!
-#   Troque os valores entre aspas pelos SEUS dados.
-#   (As linhas que começam com #  são só explicações, não mexa nelas)
+#   CONFIGURAÇÃO DO BOT QUOTEX  -  É AQUI QUE VOCÊ MEXE!
+#   (Este é o bot de opções binárias: manda CALL e PUT.)
+#   As linhas que começam com #  são só explicações, não mexa nelas.
 # ============================================================
 
-# 1) e 2) O seu TOKEN e o seu CHAT ID do Telegram agora ficam num
-#    arquivo SEPARADO, chamado  MEUS_DADOS.py , só pra eles.
-#    Isso é de propósito: assim, quando você atualizar o bot, o seu
-#    token NÃO some. Veja o arquivo  MEUS_DADOS_EXEMPLO.py  pra criar.
+# 1) e 2) O seu TOKEN e o seu CHAT ID do Telegram ficam num arquivo
+#    SEPARADO, chamado  MEUS_DADOS.py , só pra eles. Isso é de
+#    propósito: assim, quando você atualizar o bot, o seu token NÃO
+#    some. Veja o arquivo  MEUS_DADOS_EXEMPLO.py  pra criar.
+#    (Os DOIS bots, Quotex e Binance, usam esse mesmo arquivo.)
 try:
     from MEUS_DADOS import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
 except ImportError:
@@ -24,11 +25,12 @@ except ImportError:
 # ------------------------------------------------------------
 
 # 3) Quais ativos o bot vai vigiar AO MESMO TEMPO.
-#    Você falou "todo ativo" — mas a Binance tem MILHARES de pares.
-#    Vigiar todos deixaria o bot lento e te encheria de mensagem.
-#    Então deixei aqui os mais negociados (os que mais valem a pena).
-#    Pra adicionar mais, é só escrever o nome do par entre aspas e
-#    uma vírgula no fim. Pra tirar, apaga a linha. Simples assim.
+#    IMPORTANTE: o bot lê os preços na BINANCE, mas você vai OPERAR na
+#    Quotex. Por isso deixei aqui criptos que existem NOS DOIS lugares
+#    (Binance pra ler o gráfico + Quotex pra apostar).
+#    ⚠️ Confira na SUA Quotex se o ativo está disponível antes de operar.
+#    Pra adicionar: escreva o par entre aspas e vírgula no fim.
+#    Pra tirar: apague a linha.
 ATIVOS = [
     "BTCUSDT",   # Bitcoin
     "ETHUSDT",   # Ethereum
@@ -39,15 +41,13 @@ ATIVOS = [
     "DOGEUSDT",  # Dogecoin
     "AVAXUSDT",  # Avalanche
     "LINKUSDT",  # Chainlink
-    "MATICUSDT", # Polygon
+    "LTCUSDT",   # Litecoin
 ]
 
 # 4) Tempo de cada vela do gráfico.
-#    Pra COMPRAR cripto de verdade na Binance, tempos maiores são mais
-#    seguros (o movimento é maior e a taxa da Binance pesa menos).
-#    Por isso deixei "15m". Se quiser ainda mais calmo, troque por "1h".
-#    Exemplos: "5m", "15m", "1h", "4h"
-TEMPO_GRAFICO = "15m"
+#    Pra opções binárias na Quotex, a sua estratégia é no M5 = "5m".
+#    Exemplos: "1m", "5m", "15m", "1h"
+TEMPO_GRAFICO = "5m"
 
 # 5) De quantos em quantos segundos o bot olha os gráficos de novo.
 INTERVALO_SEGUNDOS = 30
@@ -69,22 +69,3 @@ RSI_SOBREVENDA = 30    # abaixo disso = esticado pra baixo
 #   2 = só quando tem pelo menos uma confirmação (recomendado)
 #   3 = só quando os 3 gatilhos concordam (poucos sinais, mais seletivo)
 FORCA_MINIMA = 2
-
-# ------------------------------------------------------------
-#   MODO BINANCE (comprar cripto de verdade no Spot)
-# ------------------------------------------------------------
-
-# Na Binance Spot você só GANHA quando o preço SOBE (compra barato,
-# vende mais caro). Não dá pra ganhar na queda. Por isso, com isto
-# ligado (True), o bot só te manda os sinais 🟢 CALL (de COMPRA) e
-# ignora os 🔴 PUT (que na Binance servem só como "não compre agora").
-#   True  = só manda sinais de COMPRA (recomendado pra Binance Spot)
-#   False = manda CALL e PUT (use só se for operar em outro lugar)
-SO_COMPRA = True
-
-# Quando chega um sinal de COMPRA, o bot já sugere na mensagem onde
-# vender no lucro (Take Profit) e onde sair no prejuízo (Stop Loss).
-# Os números abaixo são em PORCENTAGEM do preço de entrada.
-#   Exemplo: 1.0 = 1% acima/abaixo do preço da compra.
-TAKE_PROFIT_PCT = 1.0   # vender no lucro a +1% acima da compra
-STOP_LOSS_PCT = 0.5     # sair no prejuízo a -0.5% abaixo da compra
