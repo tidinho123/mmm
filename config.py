@@ -37,9 +37,11 @@ ATIVOS = [
 ]
 
 # 4) Tempo de cada vela do gráfico.
-#    Sua estratégia é no M5, então deixei "5m".
-#    Exemplos: "1m", "5m", "15m", "1h"
-TEMPO_GRAFICO = "5m"
+#    Pra COMPRAR cripto de verdade na Binance, tempos maiores são mais
+#    seguros (o movimento é maior e a taxa da Binance pesa menos).
+#    Por isso deixei "15m". Se quiser ainda mais calmo, troque por "1h".
+#    Exemplos: "5m", "15m", "1h", "4h"
+TEMPO_GRAFICO = "15m"
 
 # 5) De quantos em quantos segundos o bot olha os gráficos de novo.
 INTERVALO_SEGUNDOS = 30
@@ -61,3 +63,22 @@ RSI_SOBREVENDA = 30    # abaixo disso = esticado pra baixo
 #   2 = só quando tem pelo menos uma confirmação (recomendado)
 #   3 = só quando os 3 gatilhos concordam (poucos sinais, mais seletivo)
 FORCA_MINIMA = 2
+
+# ------------------------------------------------------------
+#   MODO BINANCE (comprar cripto de verdade no Spot)
+# ------------------------------------------------------------
+
+# Na Binance Spot você só GANHA quando o preço SOBE (compra barato,
+# vende mais caro). Não dá pra ganhar na queda. Por isso, com isto
+# ligado (True), o bot só te manda os sinais 🟢 CALL (de COMPRA) e
+# ignora os 🔴 PUT (que na Binance servem só como "não compre agora").
+#   True  = só manda sinais de COMPRA (recomendado pra Binance Spot)
+#   False = manda CALL e PUT (use só se for operar em outro lugar)
+SO_COMPRA = True
+
+# Quando chega um sinal de COMPRA, o bot já sugere na mensagem onde
+# vender no lucro (Take Profit) e onde sair no prejuízo (Stop Loss).
+# Os números abaixo são em PORCENTAGEM do preço de entrada.
+#   Exemplo: 1.0 = 1% acima/abaixo do preço da compra.
+TAKE_PROFIT_PCT = 1.0   # vender no lucro a +1% acima da compra
+STOP_LOSS_PCT = 0.5     # sair no prejuízo a -0.5% abaixo da compra

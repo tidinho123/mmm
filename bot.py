@@ -221,6 +221,8 @@ def analisar(velas):
 def montar_mensagem(ativo, r):
     direcao = r["sinal"]
     estrelas = "⭐" * r["forca"]
+    preco = r["preco"]
+
     if direcao == "CALL":
         topo = "🟢 SINAL DE COMPRA (CALL)"
     else:
@@ -230,7 +232,7 @@ def montar_mensagem(ativo, r):
         topo,
         "Ativo: {}".format(ativo),
         "Tempo do gráfico: {}".format(config.TEMPO_GRAFICO),
-        "Preço: {:.6g}".format(r["preco"]),
+        "Preço agora: {:.6g}".format(preco),
         "Força: {} ({} de 3)".format(estrelas, r["forca"]),
         "",
         "Por quê:",
@@ -238,12 +240,33 @@ def montar_mensagem(ativo, r):
     ]
     for c in r["confirmacoes"]:
         linhas.append("• " + c)
-    linhas += [
-        "",
-        "RSI: {:.0f}".format(r["rsi"]),
-        "👉 Sugestão de expiração: 1 a 2 velas ({})".format(config.TEMPO_GRAFICO),
-        "⚠️ Confira no seu gráfico antes de operar. Sinal não é garantia.",
-    ]
+
+    linhas += ["", "RSI: {:.0f}".format(r["rsi"])]
+
+    # --- Plano de operação na Binance Spot (só faz sentido na COMPRA) ---
+    if direcao == "CALL":
+        take_profit = preco * (1 + config.TAKE_PROFIT_PCT / 100)
+        stop_loss = preco * (1 - config.STOP_LOSS_PCT / 100)
+        linhas += [
+            "",
+            "📋 PLANO (Binance Spot):",
+            "1) COMPRAR perto de {:.6g}".format(preco),
+            "2) 🎯 Vender no LUCRO (Take Profit): {:.6g}  (+{:.1f}%)".format(
+                take_profit, config.TAKE_PROFIT_PCT),
+            "3) 🛑 Sair no PREJUÍZO (Stop Loss): {:.6g}  (-{:.1f}%)".format(
+                stop_loss, config.STOP_LOSS_PCT),
+            "(Dica: use uma ordem OCO pra deixar o TP e o SL automáticos.)",
+        ]
+    else:
+        linhas += [
+            "",
+            "⚠️ Sinal de QUEDA. Na Binance Spot NÃO dá pra ganhar na queda.",
+            "Serve só como aviso: NÃO é hora de comprar.",
+            "(Se você já tem esse ativo, pode ser hora de vender.)",
+        ]
+
+    linhas.append(
+        "⚠️ Confira no seu gráfico antes de operar. Sinal não é garantia.")
     return "\n".join(linhas)
 
 
@@ -252,12 +275,16 @@ def montar_mensagem(ativo, r):
 def main():
     print("Bot ligado! Vigiando", len(config.ATIVOS),
           "ativos no tempo", config.TEMPO_GRAFICO)
+    if config.SO_COMPRA:
+        modo = ("Modo Binance Spot: só vou te avisar de sinais de COMPRA "
+                "(🟢 CALL), já com sugestão de Take Profit e Stop Loss.")
+    else:
+        modo = "Vou te avisar de sinais de COMPRA (CALL) e VENDA (PUT)."
     enviar_telegram(
-        "✅ Bot ligado!\nVou vigiar {} ativos no gráfico de {} e te avisar "
-        "quando aparecer um sinal pela sua estratégia "
-        "(EMA9 + EMA200 + RSI + MACD).\n\n⚠️ Lembre-se: sinal NÃO é "
-        "garantia. Opere com responsabilidade.".format(
-            len(config.ATIVOS), config.TEMPO_GRAFICO)
+        "✅ Bot ligado!\nVou vigiar {} ativos no gráfico de {}.\n{}\n\n"
+        "Estratégia: EMA9 + EMA200 + RSI + MACD.\n\n⚠️ Lembre-se: sinal "
+        "NÃO é garantia. Opere com responsabilidade.".format(
+            len(config.ATIVOS), config.TEMPO_GRAFICO, modo)
     )
 
     # Pra não repetir o mesmo aviso: guardamos, por ativo, qual foi a
@@ -271,6 +298,12 @@ def main():
                 r = analisar(velas)
                 if r is None:
                     print(ativo, "- sem dados suficientes ainda")
+                    continue
+
+                # No "modo Binance" (SO_COMPRA), ignoramos os sinais de
+                # PUT, porque no Spot não dá pra lucrar na queda.
+                if (config.SO_COMPRA and r["sinal"] == "PUT"):
+                    print(ativo, "- sinal PUT ignorado (modo Binance/só compra)")
                     continue
 
                 if r["sinal"] and r["forca"] >= config.FORCA_MINIMA:
