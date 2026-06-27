@@ -1,0 +1,3 @@
+# Arquivos que o Python cria sozinho ao rodar o bot (não precisa guardar)
+__pycache__/
+*.pyc
