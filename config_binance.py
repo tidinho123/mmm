@@ -8,7 +8,7 @@
 # 1) COLE AQUI o TOKEN do Telegram DESTE bot (o bot Binance), entre aspas.
 #    IMPORTANTE: pra os sinais virem SEPARADOS do bot Quotex, crie um
 #    NOVO robô no @BotFather e cole o token DELE aqui (diferente do outro).
-TELEGRAM_TOKEN = "8864915396:AAE-ApNrjFkHb1yVVdhRsITRV5igMg2AiZ8"
+TELEGRAM_TOKEN = "8864915396:AAE-ApNrjFkHblyVVdhRsITRV5igMg2AiZ8"
 
 # 2) COLE AQUI o seu CHAT ID (só números).
 TELEGRAM_CHAT_ID = 7711912413
