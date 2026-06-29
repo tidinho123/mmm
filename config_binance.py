@@ -10,8 +10,8 @@
 #    NOVO robô no @BotFather e cole o token DELE aqui (diferente do outro).
 TELEGRAM_TOKEN = "8864915396:AAE-ApNrjFkHb1yVVdhRsITRV5igMg2AiZ8"
 
-# 2) COLE AQUI o seu CHAT ID (só números). Use aspas, tá certo assim.
-TELEGRAM_CHAT_ID = "7711912413"
+# 2) COLE AQUI o seu CHAT ID (só números).
+TELEGRAM_CHAT_ID = 7711912413
 
 #    -------------------------------------------------------------
 #    Pronto! O bot já funciona com o que você colou acima.
