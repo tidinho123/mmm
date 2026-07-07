@@ -4,3 +4,7 @@ __pycache__/
 
 # Seus dados secretos (token do Telegram). NUNCA sobe pro repositório.
 MEUS_DADOS.py
+
+# Perfil do Chrome do bot Bac Bo (guarda o SEU login). NUNCA sobe.
+perfil_bacbo_chrome/
+

@@ -1,0 +1,438 @@
+# ============================================================
+#   BOT BAC BO (Bantubet)  -  lê o histórico e manda o palpite
+#
+#   O QUE ELE FAZ, em ordem:
+#     1. Abre o Chrome (controlado por ele).
+#     2. ESPERA você fazer login e abrir o Bac Bo na tela.
+#     3. Lê a tirinha de resultados (🔴 Banca / 🔵 Player / 🟡 Empate).
+#     4. Toda vez que sai uma rodada NOVA, aplica a estratégia do
+#        config_bacbo.py e te manda no Telegram o palpite da PRÓXIMA.
+#     5. Vai contando quantas ele acertou/errou (placar) pra você medir.
+#
+#   VOCÊ NÃO PRECISA ENTENDER ESTE ARQUIVO. Pra mexer nas coisas,
+#   abra o  config_bacbo.py . Pra achar os resultados na tela, rode
+#   antes o  calibrar_bacbo.py  (ele te diz o que colar no config).
+#
+#   AVISO: dado é dado. Nenhum sinal é garantia. Estude, não confie cego.
+# ============================================================
+
+import time
+import requests
+import config_bacbo as cfg
+
+# O Selenium é quem controla o Chrome. Se der erro aqui, é porque falta
+# instalar: rode  pip install -r requirements.txt  (ou use o LIGAR_... ).
+try:
+    from selenium import webdriver
+    from selenium.webdriver.chrome.options import Options
+    from selenium.webdriver.chrome.service import Service
+    from selenium.webdriver.common.by import By
+except Exception:
+    print("Faltou instalar o Selenium. Rode:  pip install -r requirements.txt")
+    raise
+
+
+# ---------- Telegram ----------
+
+def enviar_telegram(mensagem):
+    """Manda uma mensagem pro seu Telegram."""
+    url = "https://api.telegram.org/bot{}/sendMessage".format(cfg.TELEGRAM_TOKEN)
+    dados = {"chat_id": cfg.TELEGRAM_CHAT_ID, "text": mensagem}
+    try:
+        requests.post(url, data=dados, timeout=15)
+    except Exception as erro:
+        print("Não consegui enviar no Telegram:", erro)
+
+
+# ---------- Abrir o navegador ----------
+
+def iniciar_navegador():
+    """Abre um Chrome controlado pelo bot, guardando o seu login numa
+    pasta (assim você não precisa logar toda vez)."""
+    import os
+    opcoes = Options()
+
+    # Guarda o login numa pasta ao lado do bot.
+    pasta = os.path.abspath(cfg.PASTA_PERFIL)
+    opcoes.add_argument("--user-data-dir=" + pasta)
+    opcoes.add_argument("--start-maximized")
+    # Deixa o Chrome menos "cara de robô".
+    opcoes.add_argument("--disable-blink-features=AutomationControlled")
+    opcoes.add_experimental_option("excludeSwitches", ["enable-automation"])
+    opcoes.add_experimental_option("useAutomationExtension", False)
+
+    if cfg.CAMINHO_CHROME:
+        opcoes.binary_location = cfg.CAMINHO_CHROME
+
+    # O Selenium 4 baixa/gerencia o driver do Chrome sozinho.
+    driver = webdriver.Chrome(options=opcoes)
+    try:
+        driver.execute_cdp_cmd(
+            "Page.addScriptToEvaluateOnNewDocument",
+            {"source": "Object.defineProperty(navigator,'webdriver',{get:()=>undefined})"},
+        )
+    except Exception:
+        pass
+    return driver
+
+
+def esperar_voce_abrir_o_jogo(driver):
+    """Abre o site e espera VOCÊ logar e deixar o Bac Bo na tela."""
+    driver.get(cfg.URL_JOGO)
+    print("=" * 60)
+    print(" 1) Faça LOGIN na Bantubet nesta janela do Chrome.")
+    print(" 2) Abra o jogo BAC BO e deixe o histórico aparecendo.")
+    print(" 3) Volte AQUI no cmd e aperte ENTER pra começar a ler.")
+    print("=" * 60)
+    try:
+        input(">>> Quando o Bac Bo estiver na tela, aperte ENTER aqui... ")
+    except EOFError:
+        # Ambiente sem teclado (raro): espera um tempão e segue.
+        time.sleep(30)
+
+
+# ---------- Ler os resultados da tela ----------
+
+def _classificar(texto):
+    """Recebe um punhado de texto/classe de um elemento e devolve
+    'B' (Banca), 'P' (Player), 'T' (Empate) ou None se não reconhecer."""
+    t = (texto or "").lower()
+    # Empate primeiro (costuma ser o mais específico).
+    for m in cfg.MARCADORES_EMPATE:
+        if m and m in t:
+            return "T"
+    for m in cfg.MARCADORES_BANCA:
+        if m and m in t:
+            return "B"
+    for m in cfg.MARCADORES_PLAYER:
+        if m and m in t:
+            return "P"
+    return None
+
+
+def _texto_do_elemento(el):
+    """Junta tudo que ajuda a reconhecer a cor: classe, texto, title,
+    alt e a cor de fundo — num tijolão de texto só."""
+    pedacos = []
+    for attr in ("class", "title", "alt", "aria-label", "data-role", "data-result"):
+        try:
+            v = el.get_attribute(attr)
+            if v:
+                pedacos.append(v)
+        except Exception:
+            pass
+    try:
+        if el.text:
+            pedacos.append(el.text)
+    except Exception:
+        pass
+    if cfg.LER_DE in ("auto", "cor"):
+        try:
+            cor = el.value_of_css_property("background-color") or ""
+            pedacos.append(_cor_para_palavra(cor))
+        except Exception:
+            pass
+    return " ".join(pedacos)
+
+
+def _cor_para_palavra(rgb):
+    """Transforma 'rgb(200, 30, 30)' em 'vermelho'/'azul'/'verde' pra
+    ajudar o reconhecimento quando a cor é o único sinal."""
+    try:
+        nums = rgb[rgb.find("(") + 1:rgb.find(")")].split(",")
+        r, g, b = (int(float(nums[0])), int(float(nums[1])), int(float(nums[2])))
+    except Exception:
+        return ""
+    if r > g and r > b:
+        return "vermelho"
+    if b > r and b > g:
+        return "azul"
+    if g > r and g > b:
+        return "verde"
+    return ""
+
+
+def entrar_no_iframe(driver):
+    """Se o jogo estiver num iframe, entra nele. Chame sempre antes de ler."""
+    driver.switch_to.default_content()
+    if cfg.SELETOR_IFRAME:
+        try:
+            frame = driver.find_element(By.CSS_SELECTOR, cfg.SELETOR_IFRAME)
+            driver.switch_to.frame(frame)
+        except Exception:
+            pass
+
+
+def ler_historico(driver):
+    """Lê a tirinha de resultados e devolve uma lista tipo
+    ['B','P','P','T','B', ...] do MAIS ANTIGO (esquerda) ao MAIS NOVO (direita).
+
+    Se o site mostrar o mais novo primeiro, é só inverter em MAIS_NOVO_PRIMEIRO.
+    """
+    entrar_no_iframe(driver)
+    try:
+        caixa = driver.find_element(By.CSS_SELECTOR, cfg.SELETOR_HISTORICO)
+    except Exception:
+        return []
+
+    itens = caixa.find_elements(By.XPATH, "./*")
+    seq = []
+    for it in itens:
+        cor = _classificar(_texto_do_elemento(it))
+        if cor is None:
+            # Talvez a bolinha esteja um nível mais fundo — tenta os filhos.
+            for filho in it.find_elements(By.XPATH, ".//*"):
+                cor = _classificar(_texto_do_elemento(filho))
+                if cor:
+                    break
+        if cor:
+            seq.append(cor)
+
+    if MAIS_NOVO_PRIMEIRO:
+        seq.reverse()
+    return seq
+
+
+# Alguns sites mostram o resultado mais RECENTE na esquerda. Se o placar
+# vier ao contrário (ele "acerta o passado"), troque isto pra True.
+MAIS_NOVO_PRIMEIRO = False
+
+
+# ---------- As estratégias (o palpite) ----------
+
+def _so_cores(seq):
+    """Tira os empates, deixando só B e P (pra contar sequência)."""
+    if cfg.IGNORAR_EMPATE:
+        return [x for x in seq if x != "T"]
+    return list(seq)
+
+
+def _oposto(cor):
+    return "P" if cor == "B" else "B"
+
+
+def estrategia_tendencia(seq):
+    s = _so_cores(seq)
+    if len(s) < cfg.STREAK_MINIMO:
+        return None
+    ultima = s[-1]
+    # Conta quantas iguais seguidas no fim.
+    n = 0
+    for x in reversed(s):
+        if x == ultima:
+            n += 1
+        else:
+            break
+    if n < cfg.STREAK_MINIMO:
+        return None
+    if cfg.MODO_TENDENCIA == "seguir":
+        alvo = ultima
+        motivo = "Saíram {}x seguidas — surfando a sequência.".format(n)
+    else:
+        alvo = _oposto(ultima)
+        motivo = "Saíram {}x seguidas — apostando na quebra.".format(n)
+    forca = min(3, 1 + (n - cfg.STREAK_MINIMO) // 1 + (1 if n >= cfg.STREAK_MINIMO + 2 else 0))
+    forca = max(1, min(3, forca))
+    return {"sinal": alvo, "forca": forca, "motivos": [motivo]}
+
+
+def estrategia_frequencia(seq):
+    s = _so_cores(seq)[-cfg.JANELA:]
+    if len(s) < max(6, cfg.STREAK_MINIMO):
+        return None
+    nb = s.count("B")
+    np_ = s.count("P")
+    if nb == np_:
+        return None
+    # Aposta na que apareceu MENOS (ideia de "volta à média").
+    alvo = "B" if nb < np_ else "P"
+    dif = abs(nb - np_)
+    forca = 1 + (1 if dif >= 3 else 0) + (1 if dif >= 5 else 0)
+    motivo = "Na janela de {}: Banca {} x {} Player. Menos frequente: {}.".format(
+        len(s), nb, np_, "Banca" if alvo == "B" else "Player")
+    return {"sinal": alvo, "forca": max(1, min(3, forca)), "motivos": [motivo]}
+
+
+def estrategia_alternancia(seq):
+    s = _so_cores(seq)
+    if len(s) < 4:
+        return None
+    # Quantas vezes seguidas veio zig-zag no fim (A B A B ...).
+    n = 1
+    for i in range(len(s) - 1, 0, -1):
+        if s[i] != s[i - 1]:
+            n += 1
+        else:
+            break
+    if n < 4:
+        return None
+    alvo = _oposto(s[-1])  # continua o zig-zag
+    forca = 1 + (1 if n >= 5 else 0) + (1 if n >= 7 else 0)
+    motivo = "Zig-zag de {} seguidos — sugerindo continuar a alternância.".format(n)
+    return {"sinal": alvo, "forca": max(1, min(3, forca)), "motivos": [motivo]}
+
+
+def analisar(seq):
+    """Escolhe a estratégia do config e devolve o palpite (ou None)."""
+    est = cfg.ESTRATEGIA
+    if est == "so_coletar":
+        return None
+    if est == "tendencia":
+        r = estrategia_tendencia(seq)
+    elif est == "frequencia":
+        r = estrategia_frequencia(seq)
+    elif est == "alternancia":
+        r = estrategia_alternancia(seq)
+    else:
+        print("Estratégia desconhecida no config:", est, "-> usando so_coletar")
+        return None
+    if r and r["forca"] < cfg.FORCA_MINIMA:
+        return None
+    return r
+
+
+# ---------- Montar a mensagem ----------
+
+NOME = {"B": "🔴 BANCA (Banker)", "P": "🔵 PLAYER", "T": "🟡 EMPATE"}
+BOLA = {"B": "🔴", "P": "🔵", "T": "🟡"}
+
+
+def fita(seq, quantos=18):
+    return "".join(BOLA.get(x, "⚪") for x in seq[-quantos:])
+
+
+def montar_mensagem(palpite, seq, placar):
+    estrelas = "⭐" * palpite["forca"]
+    linhas = [
+        "🎲 BAC BO — PALPITE DA PRÓXIMA RODADA",
+        "",
+        "Aposte em: {}".format(NOME[palpite["sinal"]]),
+        "Força: {} ({} de 3)".format(estrelas, palpite["forca"]),
+        "",
+        "Por quê:",
+    ]
+    for m in palpite["motivos"]:
+        linhas.append("• " + m)
+
+    if cfg.USAR_GALE:
+        linhas += ["", montar_gale(placar)]
+
+    linhas += [
+        "",
+        "Últimos resultados:",
+        fita(seq),
+        "",
+        "Placar do bot: ✅ {} · ❌ {} · 🟡 {}  (aproveit. {})".format(
+            placar["acertos"], placar["erros"], placar["empates"],
+            _aproveitamento(placar)),
+        "",
+        "⚠️ Dado é sorte. Isto é estudo, não garantia. Aposte com juízo.",
+    ]
+    return "\n".join(linhas)
+
+
+def montar_gale(placar):
+    valor = cfg.APOSTA_BASE * (2 ** placar["gale_atual"])
+    if placar["gale_atual"] == 0:
+        return "💰 Valor sugerido: {} (entrada base)".format(valor)
+    return "💰 Valor sugerido: {} (gale {} de {})".format(
+        valor, placar["gale_atual"], cfg.NIVEIS_GALE)
+
+
+def _aproveitamento(placar):
+    total = placar["acertos"] + placar["erros"]
+    if total == 0:
+        return "—"
+    return "{}%".format(round(100 * placar["acertos"] / total))
+
+
+# ---------- O loop principal ----------
+
+def main():
+    print("Ligando o BOT BAC BO...")
+    driver = iniciar_navegador()
+    esperar_voce_abrir_o_jogo(driver)
+
+    # Testa se ele consegue LER o histórico antes de começar de verdade.
+    teste = ler_historico(driver)
+    if not teste:
+        aviso = ("⚠️ Liguei, mas NÃO estou conseguindo ler o histórico do "
+                 "Bac Bo. Isso quase sempre é o SELETOR_HISTORICO vazio ou "
+                 "errado no config_bacbo.py.\n\n"
+                 "👉 Feche isto e rode o  calibrar_bacbo.py . Ele te mostra "
+                 "exatamente o que colar. Depois ligue de novo.")
+        print(aviso)
+        enviar_telegram(aviso)
+    else:
+        print("Consegui ler! Últimos resultados:", fita(teste))
+
+    enviar_telegram(
+        "✅ Bot BAC BO ligado!\n"
+        "Estratégia: {}\n"
+        "Vou te avisar o palpite da próxima rodada quando fizer sentido.\n\n"
+        "⚠️ Dado é sorte. Sinal não é garantia.".format(cfg.ESTRATEGIA))
+
+    placar = {"acertos": 0, "erros": 0, "empates": 0, "gale_atual": 0}
+    assinatura_anterior = None   # "foto" do histórico pra saber quando muda
+    palpite_pendente = None      # o que sugerimos pra rodada que está rolando
+
+    while True:
+        try:
+            seq = ler_historico(driver)
+            if not seq:
+                time.sleep(cfg.INTERVALO_SEGUNDOS)
+                continue
+
+            assinatura = "".join(seq[-25:])
+
+            # Rodada nova = a "foto" mudou desde a última leitura.
+            if assinatura != assinatura_anterior:
+                # Se tínhamos um palpite pendente, o resultado que acabou
+                # de sair é o veredito dele: acertou ou errou?
+                if palpite_pendente is not None and assinatura_anterior is not None:
+                    resultado = seq[-1]
+                    _conferir_placar(palpite_pendente, resultado, placar)
+                    print("Saiu:", NOME[resultado],
+                          "| placar", placar["acertos"], "x", placar["erros"])
+
+                assinatura_anterior = assinatura
+
+                # Agora calcula o palpite pra PRÓXIMA rodada.
+                palpite = analisar(seq)
+                if palpite:
+                    enviar_telegram(montar_mensagem(palpite, seq, placar))
+                    palpite_pendente = palpite["sinal"]
+                    print(">>> PALPITE:", NOME[palpite["sinal"]],
+                          "força", palpite["forca"])
+                else:
+                    palpite_pendente = None
+                    if cfg.ESTRATEGIA == "so_coletar":
+                        print("Coletando... últimos:", fita(seq))
+                    else:
+                        print("Sem palpite agora. Últimos:", fita(seq))
+
+        except Exception as erro:
+            print("Deu um errinho (vou continuar):", erro)
+
+        time.sleep(cfg.INTERVALO_SEGUNDOS)
+
+
+def _conferir_placar(palpite, resultado, placar):
+    """Atualiza acertos/erros e o nível do gale."""
+    if resultado == "T" and palpite != "T":
+        # Empate: na maioria das mesas devolve a aposta (não conta).
+        placar["empates"] += 1
+        return
+    if resultado == palpite:
+        placar["acertos"] += 1
+        placar["gale_atual"] = 0            # ganhou -> volta pra aposta base
+    else:
+        placar["erros"] += 1
+        if cfg.USAR_GALE and placar["gale_atual"] < cfg.NIVEIS_GALE:
+            placar["gale_atual"] += 1       # perdeu -> sobe um gale
+        else:
+            placar["gale_atual"] = 0
+
+
+if __name__ == "__main__":
+    main()
