@@ -50,15 +50,18 @@ CAMINHO_CHROME = ""
 
 # ------------------------------------------------------------
 #   3) ONDE ESTÃO OS RESULTADOS NA TELA
-#   (isto aqui a gente descobre JUNTOS rodando  calibrar_bacbo.py .
-#    Ele te mostra o que colar nestas 3 linhas.)
+#
+#   NÃO PRECISA MEXER AQUI! Ao ligar, o bot PROCURA sozinho o
+#   histórico na tela. Deixe as duas linhas abaixo VAZIAS ("").
+#
+#   Só preencha se você quiser TRAVAR num lugar específico (o
+#   calibrar_bacbo.py mostra exatamente o que colar).
 # ------------------------------------------------------------
 
-# O jogo costuma ficar dentro de um "iframe". Se a calibração achar um,
-# cole o CSS dele aqui. Se não tiver, deixe "" (vazio).
+# (opcional) CSS do "iframe" do jogo. Vazio = o bot descobre sozinho.
 SELETOR_IFRAME = ""
 
-# CSS do quadradinho/lista que segura as bolinhas do histórico.
+# (opcional) CSS da lista de bolinhas. Vazio = o bot descobre sozinho.
 SELETOR_HISTORICO = ""
 
 # Como o bot descobre a cor de cada bolinha:
@@ -87,7 +90,11 @@ MARCADORES_EMPATE = ["tie", "empate", "verde", "green", "draw", "t"]
 #   "tendencia"   -> quando uma cor repete várias vezes seguidas, ele age.
 #   "frequencia"  -> aposta na cor que apareceu MENOS na janela (volta à média).
 #   "alternancia" -> quando vem zig-zag (🔴🔵🔴🔵...), sugere continuar o zig-zag.
-ESTRATEGIA = "so_coletar"
+#
+#   >>> JÁ DEIXEI "tendencia" ligada pra você (a mais usada e intuitiva:
+#       quando uma cor emenda várias, ele te avisa). Se quiser só OBSERVAR
+#       sem receber palpite ainda, troque pra "so_coletar".
+ESTRATEGIA = "tendencia"
 
 # Só pra estratégia "tendencia":
 #   "seguir" -> se deu 3x Banca, ele sugere BANCA (surfar a sequência).

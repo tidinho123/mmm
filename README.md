@@ -116,24 +116,28 @@ Cole no arquivo **`config_bacbo.py`** (linha `TELEGRAM_TOKEN`).
 **3. Descubra seu Chat ID:** mande "oi" pro seu robô no Telegram e rode
 **`pegar_meu_id_bacbo.py`**. Cole o número no `config_bacbo.py`.
 
-**4. CALIBRAR (faça UMA vez):** dois cliques em **`CALIBRAR_BACBO_windows.bat`**
-(ou `.sh` no Mac/Linux). Vai abrir o Chrome:
+**4. LIGAR:** dois cliques em **`LIGAR_BOT_BACBO_windows.bat`** (ou `.sh` no
+Mac/Linux). Vai abrir o Chrome:
    - Faça **login** na Bantubet e abra o **Bac Bo**, com o histórico na tela.
    - Volte no cmd e aperte **ENTER**.
-   - Ele varre a página e mostra **candidatos** com a "sequência lida"
-     (🔴🔵🟡...). Escolha o que **bate com a tela** e cole as 2 linhas que
-     ele sugere (`SELETOR_IFRAME` e `SELETOR_HISTORICO`) no `config_bacbo.py`.
+   - Pronto! O bot **acha os resultados na tela sozinho** e já começa a
+     mandar os palpites no Telegram. Você **não precisa** colar seletor nenhum.
 
-**5. LIGAR:** dois cliques em **`LIGAR_BOT_BACBO_windows.bat`**. Faça login,
-deixe o Bac Bo na tela, aperte ENTER no cmd e pronto — ele começa a mandar
-os palpites no Telegram.
+> ✅ **É só isso.** A única coisa que você mesmo tem que colar é o **token do
+> Telegram** (passo 2) — é o seu robô pessoal, ninguém consegue gerar por você.
+> O resto (achar o jogo na tela) o bot faz automático.
+
+**Calibrar (opcional — só se der problema):** se o bot avisar que **não achou**
+o histórico, ou se as cores vierem **trocadas**, rode **`CALIBRAR_BACBO_windows.bat`**.
+Ele mostra o que o bot está enxergando e as linhas pra fixar no config — e aí
+é só me mandar o resultado que eu ajusto contigo.
 
 ### O que você escolhe no `config_bacbo.py`
 
-- **`ESTRATEGIA`** → como ele decide o palpite:
-  - `"so_coletar"` → **não** dá palpite, só mostra o histórico (comece por aqui).
-  - `"tendencia"` → quando uma cor repete muito, ele age (veja `MODO_TENDENCIA`
-    = `"seguir"` a sequência ou apostar `"contra"` a quebra).
+- **`ESTRATEGIA`** → como ele decide o palpite (**já vem em `"tendencia"`**):
+  - `"tendencia"` → **padrão.** Quando uma cor repete muito, ele age (veja
+    `MODO_TENDENCIA` = `"seguir"` a sequência ou apostar `"contra"` a quebra).
+  - `"so_coletar"` → **não** dá palpite, só mostra o histórico (pra observar).
   - `"frequencia"` → aposta na cor que apareceu **menos** na janela.
   - `"alternancia"` → quando vem zig-zag (🔴🔵🔴🔵), sugere continuar.
 - **`STREAK_MINIMO`** → quantas repetições contam como "sequência".

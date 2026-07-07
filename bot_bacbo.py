@@ -152,12 +152,179 @@ def _cor_para_palavra(rgb):
     return ""
 
 
+# --- Auto-detecção: o bot acha o histórico na tela SOZINHO ---
+# Assim você não precisa colar seletor nenhum no config. Ele guarda aqui
+# o que descobriu (em qual iframe e qual elemento) pra reusar nas leituras.
+_IFRAME_ATIVO = None
+_SELETOR_ATIVO = None
+
+
+def markers():
+    """As palavras que identificam cada cor, tudo minúsculo (pro JS usar)."""
+    return {
+        "banca": [m.lower() for m in cfg.MARCADORES_BANCA],
+        "player": [m.lower() for m in cfg.MARCADORES_PLAYER],
+        "empate": [m.lower() for m in cfg.MARCADORES_EMPATE],
+    }
+
+
+# JavaScript que roda DENTRO da página e procura a tirinha de resultados.
+# Devolve os melhores "candidatos" (elementos cujos filhos parecem bolinhas).
+JS_PROCURAR = r"""
+var MARK = arguments[0];
+
+function corPorFundo(el){
+  try{
+    var bg = getComputedStyle(el).backgroundColor || "";
+    var m = bg.match(/\d+/g);
+    if(m && m.length >= 3){
+      var r=+m[0], g=+m[1], b=+m[2];
+      if(r>g && r>b) return " vermelho";
+      if(b>r && b>g) return " azul";
+      if(g>r && g>b) return " verde";
+    }
+  }catch(e){}
+  return "";
+}
+function textoDe(el){
+  var s = " " + (el.className || "");
+  ["title","alt","aria-label","data-role","data-result"].forEach(function(a){
+    var v = el.getAttribute && el.getAttribute(a);
+    if(v) s += " " + v;
+  });
+  if(el.textContent) s += " " + el.textContent;
+  s += corPorFundo(el);
+  return s.toLowerCase();
+}
+function classifica(s){
+  for(var i=0;i<MARK.empate.length;i++)
+    if(MARK.empate[i] && s.indexOf(MARK.empate[i])>=0) return "T";
+  for(var i=0;i<MARK.banca.length;i++)
+    if(MARK.banca[i] && s.indexOf(MARK.banca[i])>=0) return "B";
+  for(var i=0;i<MARK.player.length;i++)
+    if(MARK.player[i] && s.indexOf(MARK.player[i])>=0) return "P";
+  return null;
+}
+function classificaFundo(el){
+  var c = classifica(textoDe(el));
+  if(c) return c;
+  var kids = el.querySelectorAll("*");
+  for(var i=0;i<kids.length && i<6;i++){
+    c = classifica(textoDe(kids[i]));
+    if(c) return c;
+  }
+  return null;
+}
+function seletorDe(el){
+  if(el.id) return "#" + CSS.escape(el.id);
+  var partes = [];
+  while(el && el.nodeType===1 && el.tagName.toLowerCase()!=="html"){
+    if(el.id){ partes.unshift("#"+CSS.escape(el.id)); break; }
+    var idx=1, sib=el;
+    while(sib.previousElementSibling){ sib=sib.previousElementSibling; idx++; }
+    partes.unshift(el.tagName.toLowerCase()+":nth-child("+idx+")");
+    el = el.parentNode;
+  }
+  return partes.join(" > ");
+}
+function profundidade(el){ var d=0; while(el){ d++; el=el.parentNode; } return d; }
+
+var todos = document.querySelectorAll("*");
+var cands = [];
+for(var i=0;i<todos.length;i++){
+  var el = todos[i], kids = el.children;
+  if(!kids || kids.length < 6) continue;
+  var seq = [], match = 0;
+  for(var j=0;j<kids.length;j++){
+    var c = classificaFundo(kids[j]);
+    if(c){ match++; seq.push(c); }
+  }
+  if(match >= 6)
+    cands.push({sel: seletorDe(el), total: kids.length,
+                match: match, prof: profundidade(el), seq: seq.join("")});
+}
+cands.sort(function(a,b){
+  if(b.match !== a.match) return b.match - a.match;
+  return b.prof - a.prof;
+});
+var vistos = {}, saida = [];
+for(var k=0;k<cands.length;k++){
+  if(vistos[cands[k].seq]) continue;
+  vistos[cands[k].seq] = 1;
+  saida.push(cands[k]);
+  if(saida.length >= 6) break;
+}
+return saida;
+"""
+
+
+def _melhor_candidato(driver):
+    """Roda a busca no documento atual e devolve o melhor candidato (ou None)."""
+    try:
+        cands = driver.execute_script(JS_PROCURAR, markers())
+    except Exception:
+        return None
+    if cands and cands[0]["match"] >= 6:
+        return cands[0]
+    return None
+
+
+def auto_detectar(driver):
+    """Procura o histórico sozinho: primeiro na página, depois em cada iframe.
+    Guarda o que achou pra reusar. Devolve True se encontrou."""
+    global _IFRAME_ATIVO, _SELETOR_ATIVO
+
+    # Se você preencheu o config na mão, respeita o que está lá.
+    if cfg.SELETOR_HISTORICO:
+        _IFRAME_ATIVO = cfg.SELETOR_IFRAME or None
+        _SELETOR_ATIVO = cfg.SELETOR_HISTORICO
+        return True
+
+    # 1) Direto na página principal.
+    driver.switch_to.default_content()
+    c = _melhor_candidato(driver)
+    if c:
+        _IFRAME_ATIVO, _SELETOR_ATIVO = None, c["sel"]
+        print("Auto-detectei o histórico na página ({} resultados).".format(c["match"]))
+        return True
+
+    # 2) Dentro de cada iframe (o jogo quase sempre está num).
+    driver.switch_to.default_content()
+    iframes = driver.find_elements(By.TAG_NAME, "iframe")
+    for idx, frame in enumerate(iframes):
+        fid = frame.get_attribute("id")
+        sel_frame = "#" + fid if fid else "iframe:nth-of-type({})".format(idx + 1)
+        driver.switch_to.default_content()
+        try:
+            driver.switch_to.frame(frame)
+        except Exception:
+            continue
+        c = _melhor_candidato(driver)
+        if c:
+            _IFRAME_ATIVO, _SELETOR_ATIVO = sel_frame, c["sel"]
+            driver.switch_to.default_content()
+            print("Auto-detectei o histórico no iframe {} ({} resultados).".format(
+                sel_frame, c["match"]))
+            return True
+    driver.switch_to.default_content()
+    return False
+
+
+def _iframe_alvo():
+    return cfg.SELETOR_IFRAME or _IFRAME_ATIVO or ""
+
+
+def _seletor_alvo():
+    return cfg.SELETOR_HISTORICO or _SELETOR_ATIVO or ""
+
+
 def entrar_no_iframe(driver):
     """Se o jogo estiver num iframe, entra nele. Chame sempre antes de ler."""
     driver.switch_to.default_content()
-    if cfg.SELETOR_IFRAME:
+    alvo = _iframe_alvo()
+    if alvo:
         try:
-            frame = driver.find_element(By.CSS_SELECTOR, cfg.SELETOR_IFRAME)
+            frame = driver.find_element(By.CSS_SELECTOR, alvo)
             driver.switch_to.frame(frame)
         except Exception:
             pass
@@ -170,8 +337,11 @@ def ler_historico(driver):
     Se o site mostrar o mais novo primeiro, é só inverter em MAIS_NOVO_PRIMEIRO.
     """
     entrar_no_iframe(driver)
+    seletor = _seletor_alvo()
+    if not seletor:
+        return []
     try:
-        caixa = driver.find_element(By.CSS_SELECTOR, cfg.SELETOR_HISTORICO)
+        caixa = driver.find_element(By.CSS_SELECTOR, seletor)
     except Exception:
         return []
 
@@ -353,14 +523,24 @@ def main():
     driver = iniciar_navegador()
     esperar_voce_abrir_o_jogo(driver)
 
-    # Testa se ele consegue LER o histórico antes de começar de verdade.
-    teste = ler_historico(driver)
+    # Ele procura o histórico na tela SOZINHO (você não precisa colar nada).
+    print("Procurando o histórico do Bac Bo na tela...")
+    achou = False
+    for tentativa in range(5):
+        achou = auto_detectar(driver)
+        if achou and ler_historico(driver):
+            break
+        if tentativa < 4:
+            print("  ...ainda não achei. Tento de novo em 3s "
+                  "(deixe o jogo aberto com o histórico na tela).")
+            time.sleep(3)
+
+    teste = ler_historico(driver) if achou else []
     if not teste:
-        aviso = ("⚠️ Liguei, mas NÃO estou conseguindo ler o histórico do "
-                 "Bac Bo. Isso quase sempre é o SELETOR_HISTORICO vazio ou "
-                 "errado no config_bacbo.py.\n\n"
-                 "👉 Feche isto e rode o  calibrar_bacbo.py . Ele te mostra "
-                 "exatamente o que colar. Depois ligue de novo.")
+        aviso = ("⚠️ Liguei, mas ainda NÃO achei o histórico do Bac Bo na "
+                 "tela. Confira se o jogo está aberto com as bolinhas de "
+                 "resultado aparecendo. Vou seguir tentando sozinho; se não "
+                 "pegar, rode o  calibrar_bacbo.py  que a gente ajusta juntos.")
         print(aviso)
         enviar_telegram(aviso)
     else:
@@ -375,13 +555,20 @@ def main():
     placar = {"acertos": 0, "erros": 0, "empates": 0, "gale_atual": 0}
     assinatura_anterior = None   # "foto" do histórico pra saber quando muda
     palpite_pendente = None      # o que sugerimos pra rodada que está rolando
+    vazios = 0                   # leituras seguidas sem achar nada
 
     while True:
         try:
             seq = ler_historico(driver)
             if not seq:
+                vazios += 1
+                # Se parou de ler (a página pode ter recarregado), procura de novo.
+                if vazios % 5 == 0:
+                    print("Não estou lendo nada... procurando o histórico de novo.")
+                    auto_detectar(driver)
                 time.sleep(cfg.INTERVALO_SEGUNDOS)
                 continue
+            vazios = 0
 
             assinatura = "".join(seq[-25:])
 
