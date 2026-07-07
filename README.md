@@ -110,22 +110,25 @@ te manda no Telegram o **palpite da próxima rodada** — junto com um
 **1. Python instalado** (mesmo do passo lá em cima). Ao ligar, ele instala
 o Chrome-controlado (Selenium) sozinho.
 
-**2. Crie um robô no Telegram** (via `@BotFather`) e pegue o **TOKEN**.
-Cole no arquivo **`config_bacbo.py`** (linha `TELEGRAM_TOKEN`).
-
-**3. Descubra seu Chat ID:** mande "oi" pro seu robô no Telegram e rode
-**`pegar_meu_id_bacbo.py`**. Cole o número no `config_bacbo.py`.
-
-**4. LIGAR:** dois cliques em **`LIGAR_BOT_BACBO_windows.bat`** (ou `.sh` no
-Mac/Linux). Vai abrir o Chrome:
+**2. LIGAR (funciona já assim!):** dois cliques em **`LIGAR_BOT_BACBO_windows.bat`**
+(ou `.sh` no Mac/Linux). Vai abrir o Chrome:
    - Faça **login** na Bantubet e abra o **Bac Bo**, com o histórico na tela.
    - Volte no cmd e aperte **ENTER**.
-   - Pronto! O bot **acha os resultados na tela sozinho** e já começa a
-     mandar os palpites no Telegram. Você **não precisa** colar seletor nenhum.
+   - Pronto! O bot **acha os resultados na tela sozinho** e os palpites
+     começam a aparecer **na própria janela do cmd**. Você **não precisa**
+     colar seletor nenhum, e **nem precisa do Telegram** pra ver os sinais.
 
-> ✅ **É só isso.** A única coisa que você mesmo tem que colar é o **token do
-> Telegram** (passo 2) — é o seu robô pessoal, ninguém consegue gerar por você.
-> O resto (achar o jogo na tela) o bot faz automático.
+> ✅ **Baixou, ligou, funcionou.** Os palpites saem no cmd sem configurar nada.
+
+**3. (OPCIONAL) Receber no Telegram também:** se quiser os palpites no
+celular, crie um robô no **`@BotFather`**, pegue o **TOKEN** e cole no
+**`config_bacbo.py`**. Depois mande "oi" pro seu robô, rode
+**`pegar_meu_id_bacbo.py`** e cole o **Chat ID** no mesmo arquivo. A partir
+daí ele manda **no cmd e no Telegram** ao mesmo tempo.
+
+> O token é o único passo que é só seu — é o seu robô pessoal, ninguém
+> consegue gerar por você. Mas ele é **opcional**: sem token, o bot funciona
+> igual, só mostrando no cmd.
 
 **Calibrar (opcional — só se der problema):** se o bot avisar que **não achou**
 o histórico, ou se as cores vierem **trocadas**, rode **`CALIBRAR_BACBO_windows.bat`**.

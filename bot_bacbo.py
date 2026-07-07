@@ -44,6 +44,24 @@ def enviar_telegram(mensagem):
         print("Não consegui enviar no Telegram:", erro)
 
 
+def telegram_configurado():
+    """True se você já colou um token e chat id de verdade no config."""
+    t = str(cfg.TELEGRAM_TOKEN)
+    c = str(cfg.TELEGRAM_CHAT_ID)
+    return bool(t and c and "COLE_AQUI" not in t and "COLE_AQUI" not in c)
+
+
+def avisar(mensagem):
+    """Mostra o aviso SEMPRE no cmd (num quadro, pra destacar) e, se o
+    Telegram estiver configurado, manda lá também. Assim o bot funciona
+    mesmo SEM Telegram — os palpites aparecem aqui na tela."""
+    print("\n" + "=" * 60)
+    print(mensagem)
+    print("=" * 60 + "\n")
+    if telegram_configurado():
+        enviar_telegram(mensagem)
+
+
 # ---------- Abrir o navegador ----------
 
 def iniciar_navegador():
@@ -541,12 +559,17 @@ def main():
                  "tela. Confira se o jogo está aberto com as bolinhas de "
                  "resultado aparecendo. Vou seguir tentando sozinho; se não "
                  "pegar, rode o  calibrar_bacbo.py  que a gente ajusta juntos.")
-        print(aviso)
-        enviar_telegram(aviso)
+        avisar(aviso)
     else:
         print("Consegui ler! Últimos resultados:", fita(teste))
 
-    enviar_telegram(
+    if not telegram_configurado():
+        print("\nℹ️  Telegram ainda não configurado — e tudo bem!")
+        print("   Os palpites vão aparecer AQUI nesta janela do cmd.")
+        print("   (Pra receber no celular também, cole o token e o chat id")
+        print("    no arquivo config_bacbo.py. Aí ele manda nos dois.)\n")
+
+    avisar(
         "✅ Bot BAC BO ligado!\n"
         "Estratégia: {}\n"
         "Vou te avisar o palpite da próxima rodada quando fizer sentido.\n\n"
@@ -587,7 +610,7 @@ def main():
                 # Agora calcula o palpite pra PRÓXIMA rodada.
                 palpite = analisar(seq)
                 if palpite:
-                    enviar_telegram(montar_mensagem(palpite, seq, placar))
+                    avisar(montar_mensagem(palpite, seq, placar))
                     palpite_pendente = palpite["sinal"]
                     print(">>> PALPITE:", NOME[palpite["sinal"]],
                           "força", palpite["forca"])
