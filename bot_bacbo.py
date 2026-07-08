@@ -16,6 +16,7 @@
 #   AVISO: dado é dado. Nenhum sinal é garantia. Estude, não confie cego.
 # ============================================================
 
+import re
 import time
 import requests
 import config_bacbo as cfg
@@ -111,19 +112,29 @@ def esperar_voce_abrir_o_jogo(driver):
 
 # ---------- Ler os resultados da tela ----------
 
+def _bate(marcador, texto, palavras):
+    """Um marcador de UMA letra (ex: 't') só vale se for uma PALAVRA
+    inteira sozinha (a bolinha escrita só 'T'). Se valesse como pedaço,
+    't' combinaria com qualquer texto — foi um bug que já mordeu a gente."""
+    if len(marcador) == 1:
+        return marcador in palavras
+    return marcador in texto
+
+
 def _classificar(texto):
     """Recebe um punhado de texto/classe de um elemento e devolve
     'B' (Banca), 'P' (Player), 'T' (Empate) ou None se não reconhecer."""
     t = (texto or "").lower()
+    palavras = set(re.findall(r"[a-z0-9]+", t))
     # Empate primeiro (costuma ser o mais específico).
     for m in cfg.MARCADORES_EMPATE:
-        if m and m in t:
+        if m and _bate(m, t, palavras):
             return "T"
     for m in cfg.MARCADORES_BANCA:
-        if m and m in t:
+        if m and _bate(m, t, palavras):
             return "B"
     for m in cfg.MARCADORES_PLAYER:
-        if m and m in t:
+        if m and _bate(m, t, palavras):
             return "P"
     return None
 
@@ -214,13 +225,19 @@ function textoDe(el){
   s += corPorFundo(el);
   return s.toLowerCase();
 }
+function bate(m, s, toks){
+  // Marcador de 1 letra so vale como PALAVRA inteira (bolinha escrita "T").
+  if(m.length === 1) return toks.indexOf(m) >= 0;
+  return s.indexOf(m) >= 0;
+}
 function classifica(s){
+  var toks = s.split(/[^a-z0-9]+/);
   for(var i=0;i<MARK.empate.length;i++)
-    if(MARK.empate[i] && s.indexOf(MARK.empate[i])>=0) return "T";
+    if(MARK.empate[i] && bate(MARK.empate[i], s, toks)) return "T";
   for(var i=0;i<MARK.banca.length;i++)
-    if(MARK.banca[i] && s.indexOf(MARK.banca[i])>=0) return "B";
+    if(MARK.banca[i] && bate(MARK.banca[i], s, toks)) return "B";
   for(var i=0;i<MARK.player.length;i++)
-    if(MARK.player[i] && s.indexOf(MARK.player[i])>=0) return "P";
+    if(MARK.player[i] && bate(MARK.player[i], s, toks)) return "P";
   return null;
 }
 function classificaFundo(el){
@@ -257,11 +274,17 @@ for(var i=0;i<todos.length;i++){
     var c = classificaFundo(kids[j]);
     if(c){ match++; seq.push(c); }
   }
-  if(match >= 6)
+  if(match >= 6){
+    var temB = seq.indexOf("B") >= 0, temP = seq.indexOf("P") >= 0;
     cands.push({sel: seletorDe(el), total: kids.length,
-                match: match, prof: profundidade(el), seq: seq.join("")});
+                match: match, prof: profundidade(el), seq: seq.join(""),
+                mix: (temB && temP) ? 1 : 0});
+  }
 }
+// Um historico REAL tem Banca E Player misturados. Candidato que so tem
+// uma cor (ou so empate) quase sempre e um elemento errado da pagina.
 cands.sort(function(a,b){
+  if(b.mix !== a.mix) return b.mix - a.mix;
   if(b.match !== a.match) return b.match - a.match;
   return b.prof - a.prof;
 });
@@ -546,8 +569,11 @@ def main():
     achou = False
     for tentativa in range(5):
         achou = auto_detectar(driver)
-        if achou and ler_historico(driver):
-            break
+        if achou:
+            teste = ler_historico(driver)
+            # "Só empate" = elemento errado; não vale como sucesso.
+            if teste and not all(x == "T" for x in teste):
+                break
         if tentativa < 4:
             print("  ...ainda não achei. Tento de novo em 3s "
                   "(deixe o jogo aberto com o histórico na tela).")
@@ -583,11 +609,20 @@ def main():
     while True:
         try:
             seq = ler_historico(driver)
-            if not seq:
+            # Leitura "só empate" é impossível num jogo real: é sinal de que
+            # pegamos o elemento errado. Descarta e procura de novo.
+            suspeita = len(seq) >= 8 and all(x == "T" for x in seq)
+            if not seq or suspeita:
                 vazios += 1
+                if suspeita and vazios == 1:
+                    print("Hmm, li 'só empates' — isso não existe. "
+                          "Vou procurar a tirinha certa de novo.")
                 # Se parou de ler (a página pode ter recarregado), procura de novo.
-                if vazios % 5 == 0:
-                    print("Não estou lendo nada... procurando o histórico de novo.")
+                if vazios % 5 == 0 or suspeita:
+                    print("Procurando o histórico de novo...")
+                    global _SELETOR_ATIVO, _IFRAME_ATIVO
+                    _SELETOR_ATIVO = None
+                    _IFRAME_ATIVO = None
                     auto_detectar(driver)
                 time.sleep(cfg.INTERVALO_SEGUNDOS)
                 continue

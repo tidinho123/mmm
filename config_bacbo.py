@@ -73,8 +73,9 @@ LER_DE = "auto"
 
 # Palavras/letras que identificam cada resultado. Se a calibração mostrar
 # a sequência TROCADA (Banca vindo como Player, etc), ajuste estas listas.
-MARCADORES_BANCA  = ["banker", "banca", "vermelh", "red", "dealer", "b"]
-MARCADORES_PLAYER = ["player", "azul", "blue", "p"]
+# (Marcador de UMA letra só vale quando a bolinha é SÓ aquela letra.)
+MARCADORES_BANCA  = ["banker", "banca", "banco", "vermelh", "red", "b"]
+MARCADORES_PLAYER = ["player", "jogador", "azul", "blue", "p", "j"]
 MARCADORES_EMPATE = ["tie", "empate", "verde", "green", "draw", "t"]
 
 
