@@ -36,13 +36,20 @@ except Exception:
 # ---------- Telegram ----------
 
 def enviar_telegram(mensagem):
-    """Manda uma mensagem pro seu Telegram."""
+    """Manda uma mensagem pro seu Telegram. Se a internet falhar,
+    tenta de novo até 3 vezes antes de desistir (rede fraca acontece)."""
     url = "https://api.telegram.org/bot{}/sendMessage".format(cfg.TELEGRAM_TOKEN)
     dados = {"chat_id": cfg.TELEGRAM_CHAT_ID, "text": mensagem}
-    try:
-        requests.post(url, data=dados, timeout=15)
-    except Exception as erro:
-        print("Não consegui enviar no Telegram:", erro)
+    for tentativa in range(3):
+        try:
+            requests.post(url, data=dados, timeout=15)
+            return
+        except Exception as erro:
+            if tentativa < 2:
+                print("Telegram falhou (rede?). Tentando de novo...")
+                time.sleep(2 * (tentativa + 1))
+            else:
+                print("Não consegui enviar no Telegram:", erro)
 
 
 def telegram_configurado():
@@ -619,6 +626,7 @@ def main():
     assinatura_anterior = None   # "foto" do histórico pra saber quando muda
     palpite_pendente = None      # o que sugerimos pra rodada que está rolando
     vazios = 0                   # leituras seguidas sem achar nada
+    ultima_mensagem = time.time()  # pra mandar o "sinal de vida" de vez em quando
 
     while True:
         try:
@@ -660,6 +668,7 @@ def main():
                 palpite = analisar(seq)
                 if palpite:
                     avisar(montar_mensagem(palpite, seq, placar))
+                    ultima_mensagem = time.time()
                     palpite_pendente = palpite["sinal"]
                     print(">>> PALPITE:", NOME[palpite["sinal"]],
                           "força", palpite["forca"])
@@ -669,6 +678,18 @@ def main():
                         print("Coletando... últimos:", fita(seq))
                     else:
                         print("Sem palpite agora. Últimos:", fita(seq))
+
+            # "Sinal de vida": se faz tempo que não mando nada no Telegram,
+            # aviso que continuo ligado (pra você saber que não travei).
+            minutos = getattr(cfg, "AVISO_VIVO_MINUTOS", 15)
+            if minutos > 0 and time.time() - ultima_mensagem > minutos * 60:
+                avisar("🤖 Continuo ligado e lendo a mesa!\n"
+                       "Só não apareceu o padrão da estratégia ainda.\n\n"
+                       "Últimos resultados:\n" + fita(seq) +
+                       "\n\nPlacar até agora: ✅ {} · ❌ {} · 🟡 {}".format(
+                           placar["acertos"], placar["erros"],
+                           placar["empates"]))
+                ultima_mensagem = time.time()
 
         except Exception as erro:
             print("Deu um errinho (vou continuar):", erro)

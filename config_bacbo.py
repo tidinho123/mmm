@@ -103,7 +103,9 @@ ESTRATEGIA = "tendencia"
 MODO_TENDENCIA = "seguir"
 
 # Quantas repetições seguidas contam como "sequência" (pra tendencia).
-STREAK_MINIMO = 3
+#   2 = manda MAIS sinais (avisa já na 2ª repetição seguida)
+#   3 = mais seletivo (menos sinais, esperas maiores)
+STREAK_MINIMO = 2
 
 # Quantas rodadas o bot olha pra trás nas contas (pra frequencia/alternancia).
 JANELA = 15
@@ -132,3 +134,7 @@ NIVEIS_GALE = 2          # quantas vezes dobrar depois de perder
 
 # De quantos em quantos segundos ele relê a tela procurando rodada nova.
 INTERVALO_SEGUNDOS = 2
+
+# "Sinal de vida": se ficar este tempo (em minutos) sem te mandar nada,
+# ele avisa que continua ligado. Coloque 0 pra desligar esse aviso.
+AVISO_VIVO_MINUTOS = 15
