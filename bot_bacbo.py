@@ -79,6 +79,11 @@ def iniciar_navegador():
     opcoes.add_argument("--disable-blink-features=AutomationControlled")
     opcoes.add_experimental_option("excludeSwitches", ["enable-automation"])
     opcoes.add_experimental_option("useAutomationExtension", False)
+    # NÃO deixa o Chrome "congelar" a página quando a janela fica atrás
+    # de outra (senão o jogo para de atualizar quando você sai da frente).
+    opcoes.add_argument("--disable-background-timer-throttling")
+    opcoes.add_argument("--disable-backgrounding-occluded-windows")
+    opcoes.add_argument("--disable-renderer-backgrounding")
 
     if cfg.CAMINHO_CHROME:
         opcoes.binary_location = cfg.CAMINHO_CHROME
@@ -88,7 +93,16 @@ def iniciar_navegador():
     try:
         driver.execute_cdp_cmd(
             "Page.addScriptToEvaluateOnNewDocument",
-            {"source": "Object.defineProperty(navigator,'webdriver',{get:()=>undefined})"},
+            {"source": (
+                # menos "cara de robô"
+                "Object.defineProperty(navigator,'webdriver',{get:()=>undefined});"
+                # o site sempre acha que está VISÍVEL, mesmo minimizado —
+                # senão o jogo pausa o histórico quando você troca de janela
+                "Object.defineProperty(document,'visibilityState',{get:()=>'visible'});"
+                "Object.defineProperty(document,'hidden',{get:()=>false});"
+                "window.addEventListener('visibilitychange',"
+                "e=>e.stopImmediatePropagation(),true);"
+            )},
         )
     except Exception:
         pass
