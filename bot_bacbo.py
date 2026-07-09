@@ -756,6 +756,8 @@ def main():
     ordem = "inicio" if MAIS_NOVO_PRIMEIRO else "fim"
     ultimo_sinal = 0.0           # hora do último palpite (pro MODO RITMO)
     avisei_desequilibrio = False  # já avisei que a leitura veio de uma cor só?
+    ultima_mudanca = time.time()  # última vez que o histórico MUDOU de verdade
+    avisei_congelado = False      # já avisei que a tela parece congelada?
 
     while True:
         try:
@@ -810,8 +812,29 @@ def main():
 
             assinatura = "".join(seq[-25:])
 
+            # A tela CONGELOU? Rodadas saem a cada ~40s; se nada muda por
+            # 3 minutos, o Chrome deve estar pausado (minimizado ou com
+            # aviso de inatividade do cassino). Aviso e NÃO mando palpite
+            # velho até destravar.
+            congelado = time.time() - ultima_mudanca > 180
+            if congelado and not avisei_congelado:
+                avisei_congelado = True
+                avisar("🥶 A tela do jogo parece CONGELADA — o histórico não "
+                       "muda há 3 minutos.\n\n"
+                       "1) RESTAURA a janela do Chrome do bot (não deixa "
+                       "minimizada — pode deixar atrás das outras).\n"
+                       "2) Olha se a mesa mostra um aviso tipo 'continuar "
+                       "jogando?' e clica nele.\n\n"
+                       "Assim que a tela voltar a mexer, eu continuo sozinho. "
+                       "Enquanto isso, seguro os palpites pra não te mandar "
+                       "leitura velha.")
+
             # Rodada nova = a "foto" mudou desde a última leitura.
             if assinatura != assinatura_anterior:
+                ultima_mudanca = time.time()
+                if avisei_congelado:
+                    avisei_congelado = False
+                    avisar("✅ A tela voltou a mexer! Seguindo normal.")
                 # Se tínhamos um palpite pendente, o resultado que acabou
                 # de sair é o veredito dele: acertou ou errou?
                 if palpite_pendente is not None and assinatura_anterior is not None:
@@ -843,8 +866,9 @@ def main():
 
             # MODO RITMO: garante um palpite a cada X segundos, mesmo sem
             # padrão forte (você escolhe o ritmo no config).
+            # (Com a tela congelada NÃO manda — seria palpite de dado velho.)
             cada = getattr(cfg, "SINAL_A_CADA_SEGUNDOS", 0)
-            if cada > 0 and time.time() - ultimo_sinal >= cada:
+            if cada > 0 and not congelado and time.time() - ultimo_sinal >= cada:
                 p = palpite_de_plantao(seq)
                 if p:
                     avisar(montar_mensagem(p, seq, placar))
