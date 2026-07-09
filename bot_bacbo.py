@@ -671,10 +671,13 @@ def montar_mensagem(palpite, seq, placar):
     if cfg.USAR_GALE:
         linhas += ["", montar_gale(placar)]
 
+    ult = seq[-cfg.JANELA:]
     linhas += [
         "",
         "Últimos resultados:",
         fita(seq),
+        "Na janela: 🔴 {} · 🔵 {} · 🟡 {}".format(
+            ult.count("B"), ult.count("P"), ult.count("T")),
         "",
         "Placar do bot: ✅ {} · ❌ {} · 🟡 {}  (aproveit. {})".format(
             placar["acertos"], placar["erros"], placar["empates"],
@@ -752,6 +755,7 @@ def main():
     bruto_anterior = None        # leitura crua anterior (pra descobrir a ordem)
     ordem = "inicio" if MAIS_NOVO_PRIMEIRO else "fim"
     ultimo_sinal = 0.0           # hora do último palpite (pro MODO RITMO)
+    avisei_desequilibrio = False  # já avisei que a leitura veio de uma cor só?
 
     while True:
         try:
@@ -789,6 +793,20 @@ def main():
 
             # A partir daqui, 'seq' está SEMPRE do mais antigo -> mais novo.
             seq = bruto[::-1] if ordem == "inicio" else bruto
+
+            # Auto-vigilância: um histórico real SEMPRE mistura as duas
+            # cores. Se eu estiver lendo uma cor só, algo está errado —
+            # aviso pra gente conferir juntos.
+            so_bp = [x for x in seq if x != "T"]
+            if (len(so_bp) >= 10 and not avisei_desequilibrio
+                    and (so_bp.count("B") == 0 or so_bp.count("P") == 0)):
+                avisei_desequilibrio = True
+                cor_unica = "PLAYER 🔵" if so_bp.count("B") == 0 else "BANCA 🔴"
+                avisar("⚠️ Atenção: estou lendo o histórico com UMA cor só "
+                       "({}). Isso normalmente é leitura errada da tela.\n\n"
+                       "Compara as bolinhas que eu mando com a mesa real. "
+                       "Se NÃO baterem, roda o CALIBRAR_BACBO e me manda o "
+                       "resultado pra eu ajustar.".format(cor_unica))
 
             assinatura = "".join(seq[-25:])
 
