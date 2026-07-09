@@ -603,6 +603,27 @@ def estrategia_alternancia(seq):
     return {"sinal": alvo, "forca": max(1, min(3, forca)), "motivos": [motivo]}
 
 
+def palpite_de_plantao(seq):
+    """Pro MODO RITMO (sinal a cada X segundos): se não há padrão forte,
+    dá o melhor palpite básico — a cor que está dominando a janela."""
+    r = analisar(seq)
+    if r:
+        return r
+    s = _so_cores(seq)
+    if not s:
+        return None
+    jan = s[-cfg.JANELA:]
+    nb, np_ = jan.count("B"), jan.count("P")
+    if nb == np_:
+        alvo = s[-1]
+        motivo = "Mesa equilibrada ({} x {}) — seguindo a última cor.".format(nb, np_)
+    else:
+        alvo = "B" if nb > np_ else "P"
+        motivo = "Sem padrão forte — indo com quem domina a janela ({} x {}).".format(
+            max(nb, np_), min(nb, np_))
+    return {"sinal": alvo, "forca": 1, "motivos": [motivo]}
+
+
 def analisar(seq):
     """Escolhe a estratégia do config e devolve o palpite (ou None)."""
     est = cfg.ESTRATEGIA
@@ -730,6 +751,7 @@ def main():
     ultima_mensagem = time.time()  # pra mandar o "sinal de vida" de vez em quando
     bruto_anterior = None        # leitura crua anterior (pra descobrir a ordem)
     ordem = "inicio" if MAIS_NOVO_PRIMEIRO else "fim"
+    ultimo_sinal = 0.0           # hora do último palpite (pro MODO RITMO)
 
     while True:
         try:
@@ -787,6 +809,7 @@ def main():
                 if palpite:
                     avisar(montar_mensagem(palpite, seq, placar))
                     ultima_mensagem = time.time()
+                    ultimo_sinal = time.time()
                     palpite_pendente = palpite["sinal"]
                     print(">>> PALPITE:", NOME[palpite["sinal"]],
                           "força", palpite["forca"])
@@ -799,6 +822,19 @@ def main():
                         print("Sem palpite agora. Últimos:", fita(seq),
                               "| seguidas:", _streak_fim(s),
                               "| zig-zag:", _zigzag_fim(s))
+
+            # MODO RITMO: garante um palpite a cada X segundos, mesmo sem
+            # padrão forte (você escolhe o ritmo no config).
+            cada = getattr(cfg, "SINAL_A_CADA_SEGUNDOS", 0)
+            if cada > 0 and time.time() - ultimo_sinal >= cada:
+                p = palpite_de_plantao(seq)
+                if p:
+                    avisar(montar_mensagem(p, seq, placar))
+                    ultima_mensagem = time.time()
+                    ultimo_sinal = time.time()
+                    palpite_pendente = p["sinal"]
+                    print(">>> PALPITE (ritmo):", NOME[p["sinal"]],
+                          "força", p["forca"])
 
             # "Sinal de vida": se faz tempo que não mando nada no Telegram,
             # aviso que continuo ligado (pra você saber que não travei).

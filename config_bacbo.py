@@ -137,3 +137,8 @@ INTERVALO_SEGUNDOS = 2
 # "Sinal de vida": se ficar este tempo (em minutos) sem te mandar nada,
 # ele avisa que continua ligado. Coloque 0 pra desligar esse aviso.
 AVISO_VIVO_MINUTOS = 15
+
+# MODO RITMO: manda um palpite DE TANTO EM TANTO TEMPO (segundos), mesmo
+# sem padrão forte (aí ele vai com quem domina a janela e marca ⭐ só).
+#   60 = um palpite por minuto  ·  0 = só quando o padrão aparecer
+SINAL_A_CADA_SEGUNDOS = 60
