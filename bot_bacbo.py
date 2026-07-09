@@ -448,6 +448,39 @@ def _clicar_continuar(driver):
     driver.switch_to.default_content()
 
 
+def raiox(driver, quantos=14):
+    """RAIO-X: mostra EXATAMENTE o que o bot enxerga em cada bolinha
+    (classe, texto e a cor que ele deduziu). É com isso que a gente
+    descobre por que uma cor não está sendo reconhecida."""
+    entrar_no_iframe(driver)
+    sel = _seletor_alvo()
+    linhas = ["🔬 RAIO-X (o que o bot lê em cada bolinha):"]
+    if not sel:
+        linhas.append("  (ainda não achei a lista de resultados)")
+    else:
+        try:
+            caixa = driver.find_element(By.CSS_SELECTOR, sel)
+            itens = caixa.find_elements(By.XPATH, "./*")
+        except Exception as e:
+            itens = []
+            linhas.append("  (não consegui ler: {})".format(e))
+        for i, it in enumerate(itens[:quantos], 1):
+            try:
+                cls = (it.get_attribute("class") or "").strip()[:45]
+                txt = (it.text or "").strip().replace("\n", " ")[:14]
+                cor = _classificar(_texto_do_elemento(it))
+                nome = {"B": "🔴B", "P": "🔵P", "T": "🟡T"}.get(cor, "❔?")
+                linhas.append("  {:>2}. [{}] classe='{}' txt='{}'".format(
+                    i, nome, cls, txt))
+            except Exception:
+                pass
+    texto = "\n".join(linhas)
+    print(texto)
+    if telegram_configurado():
+        enviar_telegram(texto)
+    return texto
+
+
 def entrar_no_iframe(driver):
     """Se o jogo estiver num iframe, entra nele. Chame sempre antes de ler."""
     driver.switch_to.default_content()
@@ -802,6 +835,8 @@ def main():
         avisar(aviso)
     else:
         print("Consegui ler! Últimos resultados:", fita(teste))
+        # Mostra logo de cara o que ele enxerga (pra conferir o vermelho).
+        raiox(driver)
 
     if not telegram_configurado():
         print("\nℹ️  Telegram ainda não configurado — e tudo bem!")
@@ -876,10 +911,10 @@ def main():
                 avisei_desequilibrio = True
                 cor_unica = "PLAYER 🔵" if so_bp.count("B") == 0 else "BANCA 🔴"
                 avisar("⚠️ Atenção: estou lendo o histórico com UMA cor só "
-                       "({}). Isso normalmente é leitura errada da tela.\n\n"
-                       "Compara as bolinhas que eu mando com a mesa real. "
-                       "Se NÃO baterem, roda o CALIBRAR_BACBO e me manda o "
-                       "resultado pra eu ajustar.".format(cor_unica))
+                       "({}). Isso quase sempre é leitura errada da tela "
+                       "(não reconheço a outra cor). Vou tirar um RAIO-X "
+                       "pra gente descobrir e consertar.".format(cor_unica))
+                raiox(driver)
 
             assinatura = "".join(seq[-25:])
 
