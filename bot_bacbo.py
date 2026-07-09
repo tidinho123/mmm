@@ -531,12 +531,10 @@ def raiox(driver, quantos=14):
             linhas.append("  (não consegui ler: {})".format(e))
         for i, it in enumerate(itens[:quantos], 1):
             try:
-                cls = (it.get_attribute("class") or "").strip()[:45]
-                txt = (it.text or "").strip().replace("\n", " ")[:14]
-                cor = _classificar(_texto_do_elemento(it))
+                cls = (it.get_attribute("class") or "").strip()[:40]
+                cor = _cor_do_item(it)   # mesma leitura profunda do bot
                 nome = {"B": "🔴B", "P": "🔵P", "T": "🟡T"}.get(cor, "❔?")
-                linhas.append("  {:>2}. [{}] classe='{}' txt='{}'".format(
-                    i, nome, cls, txt))
+                linhas.append("  {:>2}. [{}] classe='{}'".format(i, nome, cls))
             except Exception:
                 pass
     texto = "\n".join(linhas)
@@ -576,17 +574,23 @@ def ler_historico(driver):
     itens = caixa.find_elements(By.XPATH, "./*")
     seq = []
     for it in itens:
-        cor = _classificar(_texto_do_elemento(it))
-        if cor is None:
-            # Talvez a bolinha esteja um nível mais fundo — tenta os filhos.
-            for filho in it.find_elements(By.XPATH, ".//*"):
-                cor = _classificar(_texto_do_elemento(filho))
-                if cor:
-                    break
+        cor = _cor_do_item(it)
         if cor:
             seq.append(cor)
 
     return seq
+
+
+def _cor_do_item(it):
+    """Descobre a cor de UMA bolinha: tenta nela e, se não achar, cava
+    nos filhos (a cor costuma estar num elemento mais fundo)."""
+    cor = _classificar(_texto_do_elemento(it))
+    if cor is None:
+        for filho in it.find_elements(By.XPATH, ".//*"):
+            cor = _classificar(_texto_do_elemento(filho))
+            if cor:
+                break
+    return cor
 
 
 # Alguns sites mostram o resultado mais RECENTE na esquerda. O bot
