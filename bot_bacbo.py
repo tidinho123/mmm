@@ -915,10 +915,15 @@ def main():
                           "| placar", placar["acertos"], "x", placar["erros"])
 
                 assinatura_anterior = assinatura
+                palpite_pendente = None   # será definido se mandarmos agora
 
-                # Agora calcula o palpite pra PRÓXIMA rodada.
+                # Só MANDA a mensagem respeitando o tempo escolhido (ex: 2 min).
+                # Assim ele não te enche a cada rodada — junta e manda no ritmo.
+                cada = getattr(cfg, "SINAL_A_CADA_SEGUNDOS", 0)
+                no_tempo = (cada <= 0) or (time.time() - ultimo_sinal >= cada)
+
                 palpite = analisar(seq)
-                if palpite:
+                if palpite and no_tempo and not congelado:
                     avisar(montar_mensagem(palpite, seq, placar))
                     ultima_mensagem = time.time()
                     ultimo_sinal = time.time()
@@ -926,17 +931,14 @@ def main():
                     print(">>> PALPITE:", NOME[palpite["sinal"]],
                           "força", palpite["forca"])
                 else:
-                    palpite_pendente = None
-                    if cfg.ESTRATEGIA == "so_coletar":
-                        print("Coletando... últimos:", fita(seq))
-                    else:
-                        s = _so_cores(seq)
-                        print("Sem palpite agora. Últimos:", fita(seq),
-                              "| seguidas:", _streak_fim(s),
-                              "| zig-zag:", _zigzag_fim(s))
+                    s = _so_cores(seq)
+                    print("(aguardando o tempo)" if palpite else "Sem palpite.",
+                          "Últimos:", fita(seq),
+                          "| seguidas:", _streak_fim(s),
+                          "| zig-zag:", _zigzag_fim(s))
 
-            # MODO RITMO: garante um palpite a cada X segundos, mesmo sem
-            # padrão forte (você escolhe o ritmo no config).
+            # MODO RITMO: se passou o tempo e NENHUM palpite saiu por rodada
+            # (mesa devagar), manda um de plantão pra manter o ritmo.
             # (Com a tela congelada NÃO manda — seria palpite de dado velho.)
             cada = getattr(cfg, "SINAL_A_CADA_SEGUNDOS", 0)
             if cada > 0 and not congelado and time.time() - ultimo_sinal >= cada:

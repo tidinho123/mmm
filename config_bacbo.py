@@ -138,10 +138,10 @@ INTERVALO_SEGUNDOS = 2
 # ele avisa que continua ligado. Coloque 0 pra desligar esse aviso.
 AVISO_VIVO_MINUTOS = 15
 
-# MODO RITMO: manda um palpite DE TANTO EM TANTO TEMPO (segundos), mesmo
-# sem padrão forte (aí ele vai com quem domina a janela e marca ⭐ só).
-#   60 = um palpite por minuto  ·  0 = só quando o padrão aparecer
-SINAL_A_CADA_SEGUNDOS = 60
+# RITMO das mensagens (segundos). Ele manda no MÁXIMO uma mensagem a cada
+# tanto tempo (não te enche a cada rodada) e garante pelo menos uma nesse
+# intervalo.  120 = uma a cada 2 minutos  ·  0 = manda a cada rodada nova.
+SINAL_A_CADA_SEGUNDOS = 120
 
 # ------------------------------------------------------------
 #   ANTI-INATIVIDADE (pra a demo não encerrar sozinha)
