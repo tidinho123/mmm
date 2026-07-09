@@ -394,9 +394,10 @@ def entrar_no_iframe(driver):
 
 def ler_historico(driver):
     """Lê a tirinha de resultados e devolve uma lista tipo
-    ['B','P','P','T','B', ...] do MAIS ANTIGO (esquerda) ao MAIS NOVO (direita).
+    ['B','P','P','T','B', ...] NA ORDEM EM QUE APARECEM NA TELA.
 
-    Se o site mostrar o mais novo primeiro, é só inverter em MAIS_NOVO_PRIMEIRO.
+    (Qual lado é o resultado mais novo, o bot descobre SOZINHO no loop
+    principal, comparando uma leitura com a outra.)
     """
     entrar_no_iframe(driver)
     seletor = _seletor_alvo()
@@ -420,14 +421,37 @@ def ler_historico(driver):
         if cor:
             seq.append(cor)
 
-    if MAIS_NOVO_PRIMEIRO:
-        seq.reverse()
     return seq
 
 
-# Alguns sites mostram o resultado mais RECENTE na esquerda. Se o placar
-# vier ao contrário (ele "acerta o passado"), troque isto pra True.
+# Alguns sites mostram o resultado mais RECENTE na esquerda. O bot
+# DESCOBRE isso sozinho comparando leituras; este valor é só o chute
+# inicial (False = mais novo na direita, o mais comum).
 MAIS_NOVO_PRIMEIRO = False
+
+
+def _detectar_ordem(antes, agora):
+    """Compara duas leituras seguidas e descobre POR QUAL LADO entram os
+    resultados novos. Devolve 'fim' (direita), 'inicio' (esquerda) ou
+    None quando não dá pra saber ainda."""
+    if not antes or not agora or antes == agora:
+        return None
+    if min(len(antes), len(agora)) < 6:
+        return None
+    fim = inicio = False
+    for k in range(1, 4):
+        if len(agora) > k:
+            resto = agora[:-k]
+            if resto == antes[-len(resto):]:
+                fim = True          # o que sobrou casa com o FINAL de antes
+            resto = agora[k:]
+            if resto == antes[:len(resto)]:
+                inicio = True       # o que sobrou casa com o COMEÇO de antes
+    if fim and not inicio:
+        return "fim"
+    if inicio and not fim:
+        return "inicio"
+    return None
 
 
 # ---------- As estratégias (o palpite) ----------
@@ -441,6 +465,81 @@ def _so_cores(seq):
 
 def _oposto(cor):
     return "P" if cor == "B" else "B"
+
+
+def _streak_fim(s):
+    """Quantas vezes a ÚLTIMA cor se repetiu seguida no final."""
+    if not s:
+        return 0
+    n = 0
+    for x in reversed(s):
+        if x == s[-1]:
+            n += 1
+        else:
+            break
+    return n
+
+
+def _zigzag_fim(s):
+    """Tamanho do zig-zag (cores alternando) no final."""
+    if len(s) < 2:
+        return len(s)
+    n = 1
+    for i in range(len(s) - 1, 0, -1):
+        if s[i] != s[i - 1]:
+            n += 1
+        else:
+            break
+    return n
+
+
+def estrategia_confluencia(seq):
+    """A análise mais completa: combina TRÊS leituras da mesa.
+      1) Sequência (uma cor emendando) ou zig-zag (alternância) = o gatilho.
+      2) Domínio da janela (quem está vencendo mais) = +1 estrela.
+      3) Padrão já longo = +1 estrela.
+    Quanto mais análises concordam, mais estrelas o palpite ganha."""
+    s = _so_cores(seq)
+    if len(s) < 3:
+        return None
+
+    n = _streak_fim(s)
+    z = _zigzag_fim(s)
+    motivos = []
+    alvo = None
+
+    # Gatilho principal: sequência OU alternância.
+    if n >= cfg.STREAK_MINIMO:
+        if cfg.MODO_TENDENCIA == "contra":
+            alvo = _oposto(s[-1])
+            motivos.append("Saíram {}x seguidas — apostando na quebra.".format(n))
+        else:
+            alvo = s[-1]
+            motivos.append("Saíram {}x seguidas — surfando a sequência.".format(n))
+    elif z >= 4:
+        alvo = _oposto(s[-1])
+        motivos.append("Zig-zag de {} — continuando a alternância.".format(z))
+
+    if alvo is None:
+        return None
+
+    forca = 1
+
+    # Confirmação 1: o alvo está DOMINANDO a janela recente?
+    jan = s[-cfg.JANELA:]
+    do_alvo = jan.count(alvo)
+    do_outro = len(jan) - do_alvo
+    if do_alvo > do_outro:
+        forca += 1
+        motivos.append("{} dominando a janela ({} x {}).".format(
+            "Banca" if alvo == "B" else "Player", do_alvo, do_outro))
+
+    # Confirmação 2: o padrão já está longo?
+    if n >= cfg.STREAK_MINIMO + 2 or z >= 6:
+        forca += 1
+        motivos.append("Padrão já longo — leitura mais firme.")
+
+    return {"sinal": alvo, "forca": min(3, forca), "motivos": motivos}
 
 
 def estrategia_tendencia(seq):
@@ -509,7 +608,9 @@ def analisar(seq):
     est = cfg.ESTRATEGIA
     if est == "so_coletar":
         return None
-    if est == "tendencia":
+    if est == "confluencia":
+        r = estrategia_confluencia(seq)
+    elif est == "tendencia":
         r = estrategia_tendencia(seq)
     elif est == "frequencia":
         r = estrategia_frequencia(seq)
@@ -627,14 +728,16 @@ def main():
     palpite_pendente = None      # o que sugerimos pra rodada que está rolando
     vazios = 0                   # leituras seguidas sem achar nada
     ultima_mensagem = time.time()  # pra mandar o "sinal de vida" de vez em quando
+    bruto_anterior = None        # leitura crua anterior (pra descobrir a ordem)
+    ordem = "inicio" if MAIS_NOVO_PRIMEIRO else "fim"
 
     while True:
         try:
-            seq = ler_historico(driver)
+            bruto = ler_historico(driver)
             # Leitura "só empate" é impossível num jogo real: é sinal de que
             # pegamos o elemento errado. Descarta e procura de novo.
-            suspeita = len(seq) >= 8 and all(x == "T" for x in seq)
-            if not seq or suspeita:
+            suspeita = len(bruto) >= 8 and all(x == "T" for x in bruto)
+            if not bruto or suspeita:
                 vazios += 1
                 if suspeita and vazios == 1:
                     print("Hmm, li 'só empates' — isso não existe. "
@@ -649,6 +752,21 @@ def main():
                 time.sleep(cfg.INTERVALO_SEGUNDOS)
                 continue
             vazios = 0
+
+            # Descobre POR QUAL LADO entra o resultado novo (compara com a
+            # leitura anterior). Se perceber que estava de cabeça pra baixo,
+            # vira e recomeça o placar da rodada pra não conferir errado.
+            lado = _detectar_ordem(bruto_anterior, bruto)
+            if lado and lado != ordem:
+                ordem = lado
+                print("Percebi a ordem do histórico: o resultado novo entra",
+                      "na ESQUERDA." if ordem == "inicio" else "na DIREITA.")
+                assinatura_anterior = None
+                palpite_pendente = None
+            bruto_anterior = list(bruto)
+
+            # A partir daqui, 'seq' está SEMPRE do mais antigo -> mais novo.
+            seq = bruto[::-1] if ordem == "inicio" else bruto
 
             assinatura = "".join(seq[-25:])
 
@@ -677,7 +795,10 @@ def main():
                     if cfg.ESTRATEGIA == "so_coletar":
                         print("Coletando... últimos:", fita(seq))
                     else:
-                        print("Sem palpite agora. Últimos:", fita(seq))
+                        s = _so_cores(seq)
+                        print("Sem palpite agora. Últimos:", fita(seq),
+                              "| seguidas:", _streak_fim(s),
+                              "| zig-zag:", _zigzag_fim(s))
 
             # "Sinal de vida": se faz tempo que não mando nada no Telegram,
             # aviso que continuo ligado (pra você saber que não travei).

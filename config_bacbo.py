@@ -86,16 +86,15 @@ MARCADORES_EMPATE = ["tie", "empate", "verde", "green", "draw", "t"]
 # ------------------------------------------------------------
 
 # Opções:
+#   "confluencia" -> A MAIS COMPLETA (padrão): combina 3 análises ao mesmo
+#                    tempo — sequência/zig-zag + domínio da janela + tamanho
+#                    do padrão. As estrelas mostram QUANTAS análises
+#                    concordaram (⭐ = 1, ⭐⭐⭐ = todas).
 #   "so_coletar"  -> NÃO dá palpite. Só mostra o histórico e as estatísticas.
-#                    (o jeito mais seguro de começar e observar)
-#   "tendencia"   -> quando uma cor repete várias vezes seguidas, ele age.
+#   "tendencia"   -> só sequência: quando uma cor repete, ele age.
 #   "frequencia"  -> aposta na cor que apareceu MENOS na janela (volta à média).
 #   "alternancia" -> quando vem zig-zag (🔴🔵🔴🔵...), sugere continuar o zig-zag.
-#
-#   >>> JÁ DEIXEI "tendencia" ligada pra você (a mais usada e intuitiva:
-#       quando uma cor emenda várias, ele te avisa). Se quiser só OBSERVAR
-#       sem receber palpite ainda, troque pra "so_coletar".
-ESTRATEGIA = "tendencia"
+ESTRATEGIA = "confluencia"
 
 # Só pra estratégia "tendencia":
 #   "seguir" -> se deu 3x Banca, ele sugere BANCA (surfar a sequência).
