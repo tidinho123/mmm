@@ -142,3 +142,20 @@ AVISO_VIVO_MINUTOS = 15
 # sem padrão forte (aí ele vai com quem domina a janela e marca ⭐ só).
 #   60 = um palpite por minuto  ·  0 = só quando o padrão aparecer
 SINAL_A_CADA_SEGUNDOS = 60
+
+# ------------------------------------------------------------
+#   ANTI-INATIVIDADE (pra a demo não encerrar sozinha)
+# ------------------------------------------------------------
+
+# De tantos em tantos segundos o bot "mexe" na página pra o site não
+# encerrar a sessão por inatividade. 0 = desligado.
+ANTI_INATIVIDADE_SEGUNDOS = 90
+
+# Se aparecer um popup de "continuar jogando?", o bot clica sozinho.
+CLICAR_CONTINUAR = True
+
+# SÓ clica em botões cujo texto contenha uma destas palavras. Deixei
+# palavras seguras (ligadas a "continuar/sessão"), longe de botões de
+# aposta. Se o teu site usar outra frase, adicione aqui.
+PALAVRAS_CONTINUAR = ["continuar", "continue", "ainda estou", "estou aqui",
+                      "still here", "still playing", "resume", "reconectar"]

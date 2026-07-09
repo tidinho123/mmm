@@ -28,6 +28,7 @@ try:
     from selenium.webdriver.chrome.options import Options
     from selenium.webdriver.chrome.service import Service
     from selenium.webdriver.common.by import By
+    from selenium.webdriver.common.action_chains import ActionChains
 except Exception:
     print("Faltou instalar o Selenium. Rode:  pip install -r requirements.txt")
     raise
@@ -378,6 +379,73 @@ def _iframe_alvo():
 
 def _seletor_alvo():
     return cfg.SELETOR_HISTORICO or _SELETOR_ATIVO or ""
+
+
+# ---------- Manter a sessão VIVA (anti-inatividade) ----------
+
+_ultimo_poke = 0.0
+
+
+def manter_ativo(driver):
+    """De tempos em tempos 'mexe' na página pra o site não encerrar a
+    sessão nem pausar o jogo por você estar parado. Não clica em nada de
+    apostar — só faz uma mexidinha e, se aparecer, clica no botão de
+    'continuar jogando'."""
+    global _ultimo_poke
+    cada = getattr(cfg, "ANTI_INATIVIDADE_SEGUNDOS", 0)
+    if cada <= 0 or time.time() - _ultimo_poke < cada:
+        return
+    _ultimo_poke = time.time()
+
+    # 1) Mexidinha de mouse (atividade de verdade, sem clicar em nada).
+    try:
+        driver.switch_to.default_content()
+        ActionChains(driver).move_by_offset(1, 1).move_by_offset(-1, -1).perform()
+    except Exception:
+        pass
+
+    # 2) Se tiver um popup de "continuar jogando?", clica nele.
+    if getattr(cfg, "CLICAR_CONTINUAR", True):
+        _clicar_continuar(driver)
+    driver.switch_to.default_content()
+
+
+def _clicar_continuar(driver):
+    """Procura (na página e nos iframes) um botão cujo texto seja de
+    'continuar jogando' e clica. Só clica em texto que casa com a lista
+    do config — nunca em botão de aposta."""
+    palavras = [p.lower() for p in getattr(cfg, "PALAVRAS_CONTINUAR", [])]
+    if not palavras:
+        return
+    frames = [None]
+    driver.switch_to.default_content()
+    try:
+        frames += driver.find_elements(By.TAG_NAME, "iframe")
+    except Exception:
+        pass
+    for fr in frames:
+        driver.switch_to.default_content()
+        if fr is not None:
+            try:
+                driver.switch_to.frame(fr)
+            except Exception:
+                continue
+        try:
+            elos = driver.find_elements(
+                By.XPATH, "//button | //a | //*[@role='button']")
+        except Exception:
+            elos = []
+        for el in elos:
+            try:
+                txt = (el.text or "").strip().lower()
+                if txt and el.is_displayed() and any(p in txt for p in palavras):
+                    el.click()
+                    driver.switch_to.default_content()
+                    print("Cliquei no botão de continuar:", txt[:40])
+                    return
+            except Exception:
+                pass
+    driver.switch_to.default_content()
 
 
 def entrar_no_iframe(driver):
@@ -761,6 +829,9 @@ def main():
 
     while True:
         try:
+            # Mantém a sessão viva (mexidinha + clica em "continuar jogando").
+            manter_ativo(driver)
+
             bruto = ler_historico(driver)
             # Leitura "só empate" é impossível num jogo real: é sinal de que
             # pegamos o elemento errado. Descarta e procura de novo.
