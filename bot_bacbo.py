@@ -237,14 +237,15 @@ function corPorFundo(el){
   }catch(e){}
   return "";
 }
-function textoDe(el){
+// Texto do elemento SEM a cor de fundo (só classe/atributos/texto).
+// É o sinal "forte": rótulos de verdade tipo 'player'/'banker'.
+function textoBase(el){
   var s = " " + (el.className || "");
-  ["title","alt","aria-label","data-role","data-result"].forEach(function(a){
+  ["title","alt","aria-label","data-role","data-result","data-type"].forEach(function(a){
     var v = el.getAttribute && el.getAttribute(a);
     if(v) s += " " + v;
   });
   if(el.textContent) s += " " + el.textContent;
-  s += corPorFundo(el);
   return s.toLowerCase();
 }
 function bate(m, s, toks){
@@ -262,15 +263,29 @@ function classifica(s){
     if(MARK.player[i] && bate(MARK.player[i], s, toks)) return "P";
   return null;
 }
+// Classifica dizendo se foi "forte" (por rótulo) ou "fraco" (só pela cor).
+function classForca(el){
+  var base = textoBase(el);
+  var c = classifica(base);
+  if(c) return {cor:c, forte:true};
+  c = classifica(base + corPorFundo(el));
+  if(c) return {cor:c, forte:false};
+  return null;
+}
 function classificaFundo(el){
-  var c = classifica(textoDe(el));
-  if(c) return c;
+  var r = classForca(el);
+  if(r) return r;
   var kids = el.querySelectorAll("*");
   for(var i=0;i<kids.length && i<6;i++){
-    c = classifica(textoDe(kids[i]));
-    if(c) return c;
+    r = classForca(kids[i]);
+    if(r) return r;
   }
   return null;
+}
+// É menu / barra / navegação? (NÃO é o histórico do jogo)
+function ehMenu(el){
+  var s = ((el.className||"") + " " + (el.id||"")).toLowerCase();
+  return /menu|\bnav|aside|sidebar|header|footer|toolbar|drawer|breadcrumb|tabbar|\btab\b|banner|topbar|bottombar/.test(s);
 }
 function seletorDe(el){
   if(el.id) return "#" + CSS.escape(el.id);
@@ -291,22 +306,25 @@ var cands = [];
 for(var i=0;i<todos.length;i++){
   var el = todos[i], kids = el.children;
   if(!kids || kids.length < 6) continue;
-  var seq = [], match = 0;
+  if(ehMenu(el)) continue;                 // pula menus/barras inteiros
+  var seq = [], match = 0, forte = 0;
   for(var j=0;j<kids.length;j++){
-    var c = classificaFundo(kids[j]);
-    if(c){ match++; seq.push(c); }
+    if(ehMenu(kids[j])) continue;          // pula item de menu solto
+    var r = classificaFundo(kids[j]);
+    if(r){ match++; seq.push(r.cor); if(r.forte) forte++; }
   }
   if(match >= 6){
     var temB = seq.indexOf("B") >= 0, temP = seq.indexOf("P") >= 0;
     cands.push({sel: seletorDe(el), total: kids.length,
-                match: match, prof: profundidade(el), seq: seq.join(""),
-                mix: (temB && temP) ? 1 : 0});
+                match: match, forte: forte, prof: profundidade(el),
+                seq: seq.join(""), mix: (temB && temP) ? 1 : 0});
   }
 }
-// Um historico REAL tem Banca E Player misturados. Candidato que so tem
-// uma cor (ou so empate) quase sempre e um elemento errado da pagina.
+// Preferência: (1) tem as DUAS cores; (2) rótulos de verdade (forte);
+// (3) mais bolinhas; (4) mais fundo/específico.
 cands.sort(function(a,b){
   if(b.mix !== a.mix) return b.mix - a.mix;
+  if(b.forte !== a.forte) return b.forte - a.forte;
   if(b.match !== a.match) return b.match - a.match;
   return b.prof - a.prof;
 });
@@ -321,60 +339,107 @@ return saida;
 """
 
 
-def _melhor_candidato(driver):
-    """Roda a busca no documento atual e devolve o melhor candidato (ou None)."""
+# JS que devolve um seletor CSS único pra um elemento (o iframe), pra
+# gente conseguir voltar nele depois em cada leitura.
+JS_SELETOR = (
+    "var el=arguments[0];"
+    "if(el.id)return '#'+CSS.escape(el.id);"
+    "var p=[];"
+    "while(el&&el.nodeType===1&&el.tagName.toLowerCase()!=='html'){"
+    "  if(el.id){p.unshift('#'+CSS.escape(el.id));break;}"
+    "  var i=1,s=el;while(s.previousElementSibling){s=s.previousElementSibling;i++;}"
+    "  p.unshift(el.tagName.toLowerCase()+':nth-child('+i+')');el=el.parentNode;}"
+    "return p.join(' > ');"
+)
+
+
+def _sel_do_elemento(driver, el):
+    try:
+        return driver.execute_script(JS_SELETOR, el)
+    except Exception:
+        return None
+
+
+def _entrar_chain(driver, chain):
+    """Volta ao topo e desce pela sequência de iframes até o frame certo."""
+    driver.switch_to.default_content()
+    for sel in chain:
+        try:
+            driver.switch_to.frame(driver.find_element(By.CSS_SELECTOR, sel))
+        except Exception:
+            return False
+    return True
+
+
+def _coletar_candidatos(driver, chain, prof, achados):
+    """Varre o frame atual e, recursivamente, os iframes de dentro (o jogo
+    Evolution costuma ficar em iframe dentro de iframe). Junta tudo em
+    'achados' como (caminho_de_iframes, candidato)."""
     try:
         cands = driver.execute_script(JS_PROCURAR, markers())
     except Exception:
-        return None
-    if cands and cands[0]["match"] >= 6:
-        return cands[0]
-    return None
+        cands = []
+    for c in cands:
+        achados.append((list(chain), c))
+
+    if prof <= 0:
+        return
+    try:
+        n = len(driver.find_elements(By.TAG_NAME, "iframe"))
+    except Exception:
+        n = 0
+    for idx in range(min(n, 10)):
+        try:
+            frames = driver.find_elements(By.TAG_NAME, "iframe")
+            if idx >= len(frames):
+                break
+            fr = frames[idx]
+            sel = _sel_do_elemento(driver, fr) or "iframe:nth-of-type({})".format(idx + 1)
+            driver.switch_to.frame(fr)
+        except Exception:
+            _entrar_chain(driver, chain)
+            continue
+        _coletar_candidatos(driver, chain + [sel], prof - 1, achados)
+        _entrar_chain(driver, chain)   # volta pra continuar o loop
 
 
 def auto_detectar(driver):
-    """Procura o histórico sozinho: primeiro na página, depois em cada iframe.
-    Guarda o que achou pra reusar. Devolve True se encontrou."""
+    """Procura o histórico sozinho na página E dentro dos iframes aninhados,
+    escolhe o MELHOR candidato (ignorando menus). Devolve True se achou."""
     global _IFRAME_ATIVO, _SELETOR_ATIVO
 
     # Se você preencheu o config na mão, respeita o que está lá.
     if cfg.SELETOR_HISTORICO:
-        _IFRAME_ATIVO = cfg.SELETOR_IFRAME or None
+        _IFRAME_ATIVO = [cfg.SELETOR_IFRAME] if cfg.SELETOR_IFRAME else None
         _SELETOR_ATIVO = cfg.SELETOR_HISTORICO
         return True
 
-    # 1) Direto na página principal.
+    achados = []
     driver.switch_to.default_content()
-    c = _melhor_candidato(driver)
-    if c:
-        _IFRAME_ATIVO, _SELETOR_ATIVO = None, c["sel"]
-        print("Auto-detectei o histórico na página ({} resultados).".format(c["match"]))
-        return True
+    _coletar_candidatos(driver, [], 3, achados)
+    driver.switch_to.default_content()
+    if not achados:
+        return False
 
-    # 2) Dentro de cada iframe (o jogo quase sempre está num).
-    driver.switch_to.default_content()
-    iframes = driver.find_elements(By.TAG_NAME, "iframe")
-    for idx, frame in enumerate(iframes):
-        fid = frame.get_attribute("id")
-        sel_frame = "#" + fid if fid else "iframe:nth-of-type({})".format(idx + 1)
-        driver.switch_to.default_content()
-        try:
-            driver.switch_to.frame(frame)
-        except Exception:
-            continue
-        c = _melhor_candidato(driver)
-        if c:
-            _IFRAME_ATIVO, _SELETOR_ATIVO = sel_frame, c["sel"]
-            driver.switch_to.default_content()
-            print("Auto-detectei o histórico no iframe {} ({} resultados).".format(
-                sel_frame, c["match"]))
-            return True
-    driver.switch_to.default_content()
-    return False
+    # Melhor = tem as DUAS cores, com rótulos de verdade, mais bolinhas,
+    # e (desempate) mais "fundo" nos iframes — o jogo costuma ser aninhado.
+    def chave(item):
+        chain, c = item
+        return (c.get("mix", 0), c.get("forte", 0), c.get("match", 0), len(chain))
+    chain, c = max(achados, key=chave)
+
+    _IFRAME_ATIVO = chain if chain else None
+    _SELETOR_ATIVO = c["sel"]
+    onde = "na página" if not chain else "num quadro do jogo ({} nível de iframe)".format(len(chain))
+    print("Auto-detectei o histórico {} — {} bolinhas ({} com rótulo).".format(
+        onde, c["match"], c.get("forte", 0)))
+    return True
 
 
-def _iframe_alvo():
-    return cfg.SELETOR_IFRAME or _IFRAME_ATIVO or ""
+def _iframe_chain():
+    if cfg.SELETOR_IFRAME:
+        return [cfg.SELETOR_IFRAME]
+    return _IFRAME_ATIVO or []
 
 
 def _seletor_alvo():
@@ -482,15 +547,14 @@ def raiox(driver, quantos=14):
 
 
 def entrar_no_iframe(driver):
-    """Se o jogo estiver num iframe, entra nele. Chame sempre antes de ler."""
+    """Se o jogo estiver em iframe(s), desce por todos eles. Chame sempre
+    antes de ler (o jogo pode estar em iframe dentro de iframe)."""
     driver.switch_to.default_content()
-    alvo = _iframe_alvo()
-    if alvo:
+    for sel in _iframe_chain():
         try:
-            frame = driver.find_element(By.CSS_SELECTOR, alvo)
-            driver.switch_to.frame(frame)
+            driver.switch_to.frame(driver.find_element(By.CSS_SELECTOR, sel))
         except Exception:
-            pass
+            break
 
 
 def ler_historico(driver):
