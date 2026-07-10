@@ -139,11 +139,11 @@ INTERVALO_SEGUNDOS = 2
 AVISO_VIVO_MINUTOS = 15
 
 # RITMO por RODADAS (o jeito certo — colado no jogo, não no relógio).
-#   1 = manda a cada rodada (o "saiu X" bate certinho com a tela). RECOMENDADO.
+#   1 = manda a cada rodada (o "saiu X" bate certinho com a tela).
 #   2 = manda a cada 2 rodadas   ·   3 = a cada 3 rodadas (menos mensagens).
 # Como o bot dispara no FIM de cada rodada, contar rodadas nunca "desalinha"
 # (diferente de contar segundos, que escorrega). Ideia do próprio jogo.
-SINAL_A_CADA_RODADAS = 1
+SINAL_A_CADA_RODADAS = 3
 
 # (Antigo, por segundos.) Só é usado se SINAL_A_CADA_RODADAS for 0.
 #   0 = a cada rodada  ·  120 = a cada 2 min (pode confundir a auditoria).
