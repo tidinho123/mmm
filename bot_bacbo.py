@@ -831,8 +831,6 @@ def montar_mensagem(palpite, seq, placar):
         "",
         "Aposte em: {}".format(NOME[palpite["sinal"]]),
         "Força: {} ({} de 3)".format(estrelas, palpite["forca"]),
-        "⏱️ Vale SÓ para a próxima rodada (a que abrir agora). Se você "
-        "esperar outra, o resultado já é de outra jogada.",
         "",
         "Por quê:",
     ]
