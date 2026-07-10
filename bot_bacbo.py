@@ -847,6 +847,17 @@ def montar_mensagem(palpite, seq, placar):
         fita(seq),
         "Na janela: 🔴 {} · 🔵 {} · 🟡 {}".format(
             ult.count("B"), ult.count("P"), ult.count("T")),
+    ]
+
+    # Auditoria: mostra como foi o ÚLTIMO palpite conferido.
+    if placar.get("ultima"):
+        pal, res, veredito = placar["ultima"]
+        icone = {"acertou": "✅", "errou": "❌", "empate": "🟡"}[veredito]
+        linhas += ["",
+                   "Última aposta conferida: {} → saiu {} {}".format(
+                       BOLA.get(pal, "?"), BOLA.get(res, "?"), icone)]
+
+    linhas += [
         "",
         "Placar do bot: ✅ {} · ❌ {} · 🟡 {}  (aproveit. {})".format(
             placar["acertos"], placar["erros"], placar["empates"],
@@ -1073,16 +1084,20 @@ def main():
 
 
 def _conferir_placar(palpite, resultado, placar):
-    """Atualiza acertos/erros e o nível do gale."""
+    """Atualiza acertos/erros e o nível do gale, e guarda o veredito da
+    última conferência (pra você auditar cada palpite na mensagem)."""
     if resultado == "T" and palpite != "T":
         # Empate: na maioria das mesas devolve a aposta (não conta).
         placar["empates"] += 1
+        placar["ultima"] = (palpite, resultado, "empate")
         return
     if resultado == palpite:
         placar["acertos"] += 1
         placar["gale_atual"] = 0            # ganhou -> volta pra aposta base
+        placar["ultima"] = (palpite, resultado, "acertou")
     else:
         placar["erros"] += 1
+        placar["ultima"] = (palpite, resultado, "errou")
         if cfg.USAR_GALE and placar["gale_atual"] < cfg.NIVEIS_GALE:
             placar["gale_atual"] += 1       # perdeu -> sobe um gale
         else:
