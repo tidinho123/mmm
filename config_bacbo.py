@@ -138,12 +138,15 @@ INTERVALO_SEGUNDOS = 2
 # ele avisa que continua ligado. Coloque 0 pra desligar esse aviso.
 AVISO_VIVO_MINUTOS = 15
 
-# RITMO das mensagens (segundos).
-#   0   = manda a CADA RODADA nova (RECOMENDADO). Assim o "saiu X" da
-#         auditoria bate certinho com o que você vê na tela, e o placar
-#         confere a rodada certa. Você recebe mais mensagens, mas tudo alinha.
-#   120 = uma a cada 2 min (menos mensagens, mas a auditoria fica confusa
-#         porque ele confere uma rodada de minutos atrás).
+# RITMO por RODADAS (o jeito certo — colado no jogo, não no relógio).
+#   1 = manda a cada rodada (o "saiu X" bate certinho com a tela). RECOMENDADO.
+#   2 = manda a cada 2 rodadas   ·   3 = a cada 3 rodadas (menos mensagens).
+# Como o bot dispara no FIM de cada rodada, contar rodadas nunca "desalinha"
+# (diferente de contar segundos, que escorrega). Ideia do próprio jogo.
+SINAL_A_CADA_RODADAS = 1
+
+# (Antigo, por segundos.) Só é usado se SINAL_A_CADA_RODADAS for 0.
+#   0 = a cada rodada  ·  120 = a cada 2 min (pode confundir a auditoria).
 SINAL_A_CADA_SEGUNDOS = 0
 
 # ------------------------------------------------------------

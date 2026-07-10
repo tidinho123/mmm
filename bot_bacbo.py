@@ -936,7 +936,8 @@ def main():
     ultima_mensagem = time.time()  # pra mandar o "sinal de vida" de vez em quando
     bruto_anterior = None        # leitura crua anterior (pra descobrir a ordem)
     ordem = "inicio" if MAIS_NOVO_PRIMEIRO else "fim"
-    ultimo_sinal = 0.0           # hora do último palpite (pro MODO RITMO)
+    ultimo_sinal = 0.0           # hora do último palpite (pro filtro por segundos)
+    rodadas_desde_sinal = 0      # quantas rodadas desde o último palpite enviado
     avisei_desequilibrio = False  # já avisei que a leitura veio de uma cor só?
     ultima_mudanca = time.time()  # última vez que o histórico MUDOU de verdade
     avisei_congelado = False      # já avisei que a tela parece congelada?
@@ -1030,40 +1031,35 @@ def main():
 
                 assinatura_anterior = assinatura
                 palpite_pendente = None   # será definido se mandarmos agora
+                rodadas_desde_sinal += 1
 
-                # Só MANDA a mensagem respeitando o tempo escolhido (ex: 2 min).
-                # Assim ele não te enche a cada rodada — junta e manda no ritmo.
-                cada = getattr(cfg, "SINAL_A_CADA_SEGUNDOS", 0)
-                no_tempo = (cada <= 0) or (time.time() - ultimo_sinal >= cada)
+                # É hora de mandar? Preferimos contar RODADAS (colado no jogo).
+                cada_rod = getattr(cfg, "SINAL_A_CADA_RODADAS", 1)
+                cada_seg = getattr(cfg, "SINAL_A_CADA_SEGUNDOS", 0)
+                if cada_rod > 0:
+                    na_hora = rodadas_desde_sinal >= cada_rod
+                else:
+                    na_hora = (cada_seg <= 0) or (time.time() - ultimo_sinal >= cada_seg)
 
-                palpite = analisar(seq)
-                if palpite and no_tempo and not congelado:
-                    avisar(montar_mensagem(palpite, seq, placar))
-                    ultima_mensagem = time.time()
-                    ultimo_sinal = time.time()
-                    palpite_pendente = palpite["sinal"]
-                    print(">>> PALPITE:", NOME[palpite["sinal"]],
-                          "força", palpite["forca"])
+                if na_hora and not congelado:
+                    # Melhor palpite disponível: padrão forte, ou o de plantão.
+                    palpite = analisar(seq) or palpite_de_plantao(seq)
+                    if palpite:
+                        avisar(montar_mensagem(palpite, seq, placar))
+                        ultima_mensagem = time.time()
+                        ultimo_sinal = time.time()
+                        rodadas_desde_sinal = 0
+                        palpite_pendente = palpite["sinal"]
+                        print(">>> PALPITE:", NOME[palpite["sinal"]],
+                              "força", palpite["forca"])
                 else:
                     s = _so_cores(seq)
-                    print("(aguardando o tempo)" if palpite else "Sem palpite.",
+                    print("(faltam {} rodada(s))".format(
+                              max(0, cada_rod - rodadas_desde_sinal))
+                          if cada_rod > 0 else "(aguardando)",
                           "Últimos:", fita(seq),
                           "| seguidas:", _streak_fim(s),
                           "| zig-zag:", _zigzag_fim(s))
-
-            # MODO RITMO: se passou o tempo e NENHUM palpite saiu por rodada
-            # (mesa devagar), manda um de plantão pra manter o ritmo.
-            # (Com a tela congelada NÃO manda — seria palpite de dado velho.)
-            cada = getattr(cfg, "SINAL_A_CADA_SEGUNDOS", 0)
-            if cada > 0 and not congelado and time.time() - ultimo_sinal >= cada:
-                p = palpite_de_plantao(seq)
-                if p:
-                    avisar(montar_mensagem(p, seq, placar))
-                    ultima_mensagem = time.time()
-                    ultimo_sinal = time.time()
-                    palpite_pendente = p["sinal"]
-                    print(">>> PALPITE (ritmo):", NOME[p["sinal"]],
-                          "força", p["forca"])
 
             # "Sinal de vida": se faz tempo que não mando nada no Telegram,
             # aviso que continuo ligado (pra você saber que não travei).
