@@ -857,11 +857,15 @@ def montar_mensagem(palpite, seq, placar):
                    "Última aposta conferida: {} → saiu {} {}".format(
                        BOLA.get(pal, "?"), BOLA.get(res, "?"), icone)]
 
+    if getattr(cfg, "MOSTRAR_PLACAR", True):
+        linhas += [
+            "",
+            "Placar do bot: ✅ {} · ❌ {} · 🟡 {}  (aproveit. {})".format(
+                placar["acertos"], placar["erros"], placar["empates"],
+                _aproveitamento(placar)),
+        ]
+
     linhas += [
-        "",
-        "Placar do bot: ✅ {} · ❌ {} · 🟡 {}  (aproveit. {})".format(
-            placar["acertos"], placar["erros"], placar["empates"],
-            _aproveitamento(placar)),
         "",
         "⚠️ Dado é sorte. Isto é estudo, não garantia. Aposte com juízo.",
     ]

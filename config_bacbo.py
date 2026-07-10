@@ -116,6 +116,10 @@ IGNORAR_EMPATE = True
 # Força mínima (⭐ a ⭐⭐⭐) pra te mandar o sinal. 1 = manda mais, 3 = só os fortes.
 FORCA_MINIMA = 1
 
+# Mostrar (ou não) a linha "Placar do bot" na mensagem do Telegram.
+#   False = mensagem mais limpa, sem o placar.  True = mostra o placar.
+MOSTRAR_PLACAR = False
+
 
 # ------------------------------------------------------------
 #   5) GALE  (opcional — sugestão de quanto apostar)
