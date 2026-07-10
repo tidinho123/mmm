@@ -138,10 +138,13 @@ INTERVALO_SEGUNDOS = 2
 # ele avisa que continua ligado. Coloque 0 pra desligar esse aviso.
 AVISO_VIVO_MINUTOS = 15
 
-# RITMO das mensagens (segundos). Ele manda no MÁXIMO uma mensagem a cada
-# tanto tempo (não te enche a cada rodada) e garante pelo menos uma nesse
-# intervalo.  120 = uma a cada 2 minutos  ·  0 = manda a cada rodada nova.
-SINAL_A_CADA_SEGUNDOS = 120
+# RITMO das mensagens (segundos).
+#   0   = manda a CADA RODADA nova (RECOMENDADO). Assim o "saiu X" da
+#         auditoria bate certinho com o que você vê na tela, e o placar
+#         confere a rodada certa. Você recebe mais mensagens, mas tudo alinha.
+#   120 = uma a cada 2 min (menos mensagens, mas a auditoria fica confusa
+#         porque ele confere uma rodada de minutos atrás).
+SINAL_A_CADA_SEGUNDOS = 0
 
 # ------------------------------------------------------------
 #   ANTI-INATIVIDADE (pra a demo não encerrar sozinha)
