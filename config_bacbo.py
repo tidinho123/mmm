@@ -136,7 +136,8 @@ NIVEIS_GALE = 2          # quantas vezes dobrar depois de perder
 # ------------------------------------------------------------
 
 # De quantos em quantos segundos ele relê a tela procurando rodada nova.
-INTERVALO_SEGUNDOS = 2
+# Menor = pega a bolinha nova mais rápido e o sinal sai mais cedo (1 é bom).
+INTERVALO_SEGUNDOS = 1
 
 # "Sinal de vida": se ficar este tempo (em minutos) sem te mandar nada,
 # ele avisa que continua ligado. Coloque 0 pra desligar esse aviso.
